@@ -2,15 +2,30 @@ from langchain_classic.chains import create_history_aware_retriever, create_retr
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.retrievers import RetrieverLike
 from langchain_openai import ChatOpenAI
 
 from app.prompts.templates import SYSTEM_PROMPT
 
 
-def create_rag_chain(vector_store: Chroma, model: str, top_k: int = 5):
-    """대화 히스토리를 지원하는 RAG 체인을 생성한다."""
+def create_rag_chain(
+    vector_store: Chroma,
+    model: str,
+    top_k: int = 5,
+    retriever: RetrieverLike | None = None,
+):
+    """대화 히스토리를 지원하는 RAG 체인을 생성한다.
+
+    Args:
+        vector_store: ChromaDB 벡터 저장소
+        model: OpenAI 모델 이름
+        top_k: 검색 결과 수
+        retriever: 커스텀 검색기 (None이면 기본 시맨틱 검색 사용)
+    """
     llm = ChatOpenAI(model=model, temperature=0)
-    retriever = vector_store.as_retriever(search_kwargs={"k": top_k})
+
+    if retriever is None:
+        retriever = vector_store.as_retriever(search_kwargs={"k": top_k})
 
     # 대화 히스토리를 고려한 질문 재작성 체인
     contextualize_prompt = ChatPromptTemplate.from_messages([

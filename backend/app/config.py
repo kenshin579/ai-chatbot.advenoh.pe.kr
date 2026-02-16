@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     top_k: int = 5
+    use_hybrid_search: bool = False
 
     # 멀티 블로그 Collection 설정
     blog_collections: dict[str, str] = {
