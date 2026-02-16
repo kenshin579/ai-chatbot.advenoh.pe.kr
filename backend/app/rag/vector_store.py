@@ -8,8 +8,17 @@ class VectorStoreManager:
     """ChromaDB 기반 벡터 저장소 관리자. blog_id별 Collection을 분리 관리한다."""
 
     def __init__(self, host: str, port: int, embeddings: OpenAIEmbeddings):
-        self.client = chromadb.HttpClient(host=host, port=port)
+        self._host = host
+        self._port = port
         self.embeddings = embeddings
+        self._client: chromadb.HttpClient | None = None
+
+    @property
+    def client(self) -> chromadb.HttpClient:
+        """ChromaDB 클라이언트를 lazy 초기화한다."""
+        if self._client is None:
+            self._client = chromadb.HttpClient(host=self._host, port=self._port)
+        return self._client
 
     def get_store(self, blog_id: str) -> Chroma:
         """blog_id에 해당하는 Collection을 Chroma wrapper로 반환한다."""
