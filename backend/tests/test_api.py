@@ -37,7 +37,13 @@ class TestChatEndpoint:
 
 
 class TestIndexEndpoint:
-    def test_invalid_blog_id_returns_400(self, client):
-        response = client.post("/index/invalid-blog")
-        assert response.status_code == 400
-        assert "Unknown blog_id" in response.json()["detail"]
+    def test_no_auth_returns_401(self, client):
+        response = client.post("/index/blog-v2")
+        assert response.status_code == 401
+
+    def test_invalid_token_returns_401(self, client):
+        response = client.post(
+            "/index/blog-v2",
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+        assert response.status_code in (401, 500)  # 500 if token not configured

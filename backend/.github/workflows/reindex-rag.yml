@@ -1,0 +1,25 @@
+name: RAG 재인덱싱
+
+# 이 워크플로우는 블로그 repo에 배치한다:
+# - blog-v2.advenoh.pe.kr/.github/workflows/reindex-rag.yml
+# - investment.advenoh.pe.kr/.github/workflows/reindex-rag.yml
+#
+# 여기에는 참고용으로 보관한다.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'contents/**'
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger RAG reindex
+        run: |
+          curl -X POST \
+            "https://ai-chatbot.advenoh.pe.kr/index/blog-v2" \
+            -H "Authorization: Bearer ${{ secrets.RAG_INDEX_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error

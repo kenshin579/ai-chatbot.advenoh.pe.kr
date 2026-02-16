@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.api.models import (
@@ -16,6 +17,7 @@ from app.rag.embedder import create_embeddings
 from app.rag.vector_store import VectorStoreManager
 
 router = APIRouter()
+bearer_scheme = HTTPBearer()
 
 
 def get_vector_store_manager(
@@ -23,6 +25,18 @@ def get_vector_store_manager(
 ) -> VectorStoreManager:
     embeddings = create_embeddings(settings.embedding_model)
     return VectorStoreManager(settings.chroma_host, settings.chroma_port, embeddings)
+
+
+def verify_index_token(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    settings: Settings = Depends(get_settings),
+) -> str:
+    """인덱싱 API의 Bearer 토큰을 검증한다."""
+    if not settings.index_api_token:
+        raise HTTPException(status_code=500, detail="INDEX_API_TOKEN not configured")
+    if credentials.credentials != settings.index_api_token:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return credentials.credentials
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -70,10 +84,11 @@ async def chat(
 @router.post("/index/{blog_id}", response_model=IndexResponse)
 async def reindex(
     blog_id: str,
+    _token: str = Depends(verify_index_token),
     settings: Settings = Depends(get_settings),
     manager: VectorStoreManager = Depends(get_vector_store_manager),
 ):
-    """블로그 문서 전체 재인덱싱"""
+    """블로그 문서 전체 재인덱싱 (Bearer 토큰 인증 필요)"""
     if blog_id not in settings.blog_collections:
         raise HTTPException(
             status_code=400, detail=f"Unknown blog_id: {blog_id}"
