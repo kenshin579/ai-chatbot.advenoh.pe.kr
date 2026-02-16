@@ -32,9 +32,9 @@ def verify_index_token(
     settings: Settings = Depends(get_settings),
 ) -> str:
     """인덱싱 API의 Bearer 토큰을 검증한다."""
-    if not settings.index_api_token:
-        raise HTTPException(status_code=500, detail="INDEX_API_TOKEN not configured")
-    if credentials.credentials != settings.index_api_token:
+    if not settings.rag_index_token:
+        raise HTTPException(status_code=500, detail="RAG_INDEX_TOKEN not configured")
+    if credentials.credentials != settings.rag_index_token:
         raise HTTPException(status_code=401, detail="Invalid token")
     return credentials.credentials
 

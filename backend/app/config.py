@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     }
 
     # Index API auth
-    index_api_token: str = ""
+    rag_index_token: str = ""
 
     model_config = {"env_file": ".env"}
 
