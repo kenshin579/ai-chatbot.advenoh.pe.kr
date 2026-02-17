@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Index API auth
     rag_index_token: str = ""
 
+    # LangSmith
+    langsmith_api_key: str = ""
+
     # MySQL
     mysql_host: str = "localhost"
     mysql_port: int = 3306

@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.models import (
     ChatRequest,
     ChatResponse,
+    FeedbackRequest,
+    FeedbackResponse,
     HealthResponse,
     IndexResponse,
     Source,
@@ -147,6 +149,43 @@ async def reindex(
     indexed = manager.index_documents(blog_id, chunks)
 
     return IndexResponse(status="ok", blog_id=blog_id, indexed_chunks=indexed)
+
+
+@router.post("/feedback", response_model=FeedbackResponse)
+async def feedback(
+    request: FeedbackRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """사용자 피드백 저장 및 LangSmith 연동"""
+    # feedbacks 테이블 저장
+    if db_conn.async_session_factory:
+        try:
+            async with db_conn.async_session_factory() as session:
+                repo = QueryLogRepository(session)
+                await repo.save_feedback(
+                    message_id=request.message_id,
+                    blog_id=request.blog_id,
+                    question=request.question,
+                    rating=request.rating,
+                )
+        except Exception:
+            logger.exception("피드백 저장 실패")
+
+    # LangSmith 피드백 전송 (API key가 설정된 경우)
+    if settings.langsmith_api_key:
+        try:
+            from langsmith import Client
+            ls_client = Client(api_key=settings.langsmith_api_key)
+            ls_client.create_feedback(
+                run_id=request.message_id,
+                key="user_feedback",
+                score=1.0 if request.rating == "up" else 0.0,
+                comment=request.question,
+            )
+        except Exception:
+            logger.exception("LangSmith 피드백 전송 실패")
+
+    return FeedbackResponse(status="ok")
 
 
 @router.get("/health", response_model=HealthResponse)
