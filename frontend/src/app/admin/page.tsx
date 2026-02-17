@@ -19,7 +19,7 @@ export default async function AdminPage() {
   const totalQueries = stats.daily_queries.reduce((s, d) => s + d.count, 0);
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="bg-background p-8">
       <h1 className="mb-6 text-2xl font-bold">Admin 대시보드</h1>
 
       {/* 통계 카드 */}
