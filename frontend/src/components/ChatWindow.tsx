@@ -72,9 +72,8 @@ export function ChatWindow() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <h1 className="text-lg font-semibold">Blog Q&A Chatbot</h1>
+      {/* 블로그 선택 */}
+      <div className="flex items-center justify-end p-2 border-b">
         <Select value={blogId} onValueChange={setBlogId}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
