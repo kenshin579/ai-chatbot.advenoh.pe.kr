@@ -34,3 +34,7 @@ gh release create "$NEW_VERSION" \
   --generate-notes
 
 echo "Released: $NEW_VERSION"
+
+# fe/be 동일 버전으로 Docker 이미지 빌드 및 푸시
+echo "Building Docker images with version $NEW_VERSION..."
+"$(dirname "$0")/docker-push.sh" all
