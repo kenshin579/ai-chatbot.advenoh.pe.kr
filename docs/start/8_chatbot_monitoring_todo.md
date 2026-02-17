@@ -151,5 +151,5 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 - [x] Backend Docker 이미지 빌드 및 푸시 (`kenshin579/ai-chatbot-be:0.5.5`)
 - [x] Frontend Docker 이미지 빌드 및 푸시 (`kenshin579/ai-chatbot-fe:0.5.6`)
 - [x] Charts 버전 업데이트 (ai-chatbot-be, ai-chatbot-fe values.yaml)
-- [ ] PR 생성 → main merge → release 브랜치 푸시
-- [ ] ArgoCD sync 확인
+- [x] PR 생성 → main merge → release 브랜치 푸시
+- [x] ArgoCD sync 확인
