@@ -126,23 +126,23 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M5: Admin 대시보드 페이지 + 차트
 
 ### Frontend - 의존성
-- [ ] `package.json` - recharts 추가 (`npm install recharts`)
+- [x] `package.json` - recharts 추가 (`npm install recharts`)
 
 ### Frontend - API 클라이언트
-- [ ] `src/lib/api.ts` - AdminStats 인터페이스, getAdminStats 함수 추가
+- [x] `src/lib/api.ts` - AdminStats 인터페이스, getAdminStats 함수 추가
 
 ### Frontend - Admin 컴포넌트
-- [ ] `src/components/admin/StatsCard.tsx` - 통계 카드 (질문 수, 피드백 점수, 응답 시간, 실패율)
-- [ ] `src/components/admin/QueryChart.tsx` - 일별 질문 수 LineChart (recharts)
-- [ ] `src/components/admin/TopQuestions.tsx` - 인기 질문 테이블
-- [ ] `src/components/admin/CollectionInfo.tsx` - 인덱싱 현황
+- [x] `src/components/admin/StatsCard.tsx` - 통계 카드 (질문 수, 피드백 점수, 응답 시간, 실패율)
+- [x] `src/components/admin/QueryChart.tsx` - 일별 질문 수 LineChart (recharts)
+- [x] `src/components/admin/TopQuestions.tsx` - 인기 질문 테이블
+- [x] `src/components/admin/CollectionInfo.tsx` - 인덱싱 현황
 
 ### Frontend - Admin 페이지
-- [ ] `src/app/admin/page.tsx` - 통계 조회 → 대시보드 렌더링
+- [x] `src/app/admin/page.tsx` - 통계 조회 → 대시보드 렌더링
 
 ### 테스트 (MCP Playwright)
-- [ ] `/admin` 페이지 접근 → 통계 데이터 렌더링 확인
-- [ ] 차트/카드 컴포넌트 정상 표시 확인
+- [x] `/admin` 페이지 접근 → 통계 데이터 렌더링 확인 (HTTP 200 OK)
+- [ ] 차트/카드 컴포넌트 정상 표시 확인 (Playwright 시각 검증 필요)
 
 ---
 
