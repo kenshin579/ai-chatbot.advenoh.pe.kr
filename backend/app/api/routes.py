@@ -188,6 +188,37 @@ async def feedback(
     return FeedbackResponse(status="ok")
 
 
+@router.get("/admin/stats")
+async def admin_stats():
+    """Admin 대시보드 통계 데이터 반환"""
+    if not db_conn.async_session_factory:
+        return {
+            "daily_queries": [],
+            "top_questions": [],
+            "feedback_score": {"total": 0, "up": 0, "down": 0, "up_ratio": 0.0},
+            "avg_response_time": 0.0,
+            "search_failure_rate": 0.0,
+        }
+
+    async with db_conn.async_session_factory() as session:
+        repo = QueryLogRepository(session)
+        daily_queries, top_questions, feedback_score, avg_response_time, search_failure_rate = (
+            await repo.get_daily_counts(),
+            await repo.get_top_questions(),
+            await repo.get_feedback_ratio(),
+            await repo.get_avg_response_time(),
+            await repo.get_search_failure_rate(),
+        )
+
+    return {
+        "daily_queries": daily_queries,
+        "top_questions": top_questions,
+        "feedback_score": feedback_score,
+        "avg_response_time": avg_response_time,
+        "search_failure_rate": search_failure_rate,
+    }
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health():
     return HealthResponse(status="ok")
