@@ -156,7 +156,6 @@ flowchart LR
 ### 5.1 접근
 
 - **URL**: `ai-chatbot.advenoh.pe.kr/admin`
-- **인증**: 간단한 토큰 인증 (환경변수 `ADMIN_TOKEN`)
 
 ### 5.2 대시보드 표시 항목
 
@@ -177,7 +176,7 @@ flowchart LR
 ```python
 # backend/app/api/routes.py
 @router.get("/admin/stats")
-async def get_stats(token: str = Depends(verify_admin_token)):
+async def get_stats():
     """Admin 대시보드 통계 데이터 반환"""
     return {
         "daily_queries": query_log.get_daily_counts(),

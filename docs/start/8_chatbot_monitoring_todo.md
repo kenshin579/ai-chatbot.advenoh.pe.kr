@@ -64,9 +64,9 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 - [x] `app/api/models.py` - ChatResponse에 `message_id` 필드 추가
 
 ### 테스트
-- [ ] 로컬 MySQL + Liquibase로 스키마 생성 확인
+- [x] 로컬 MySQL + Liquibase로 스키마 생성 확인
 - [ ] /chat 호출 → query_logs 테이블 기록 확인
-- [ ] Docker 이미지 빌드 → PreSync Job 실행 → 테이블 생성 확인
+- [x] Docker 이미지 빌드 → PreSync Job 실행 → 테이블 생성 확인
 
 ---
 
@@ -108,8 +108,6 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M4: Admin 통계 API
 
 ### Backend - /admin/stats API
-- [ ] `app/config.py` - admin_token 설정 추가
-- [ ] `app/api/routes.py` - verify_admin_token 의존성 함수
 - [ ] `app/api/routes.py` - GET /admin/stats 엔드포인트 구현
 - [ ] `app/db/repository.py` - get_daily_counts (일별 질문 수)
 - [ ] `app/db/repository.py` - get_top_questions (인기 질문 TOP 10)
@@ -118,12 +116,10 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 - [ ] `app/db/repository.py` - get_search_failure_rate (검색 실패율)
 
 ### Charts
-- [x] `charts/ai-chatbot-be/templates/secret.yaml` - ADMIN_TOKEN 추가
 - [x] `charts/gateway/values.yaml` - `/admin/stats` 라우트 추가
 
 ### 테스트
-- [ ] GET /admin/stats (토큰 없음) → 401 확인
-- [ ] GET /admin/stats (유효 토큰) → 통계 데이터 반환 확인
+- [ ] GET /admin/stats → 통계 데이터 반환 확인
 
 ---
 
@@ -142,11 +138,10 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 - [ ] `src/components/admin/CollectionInfo.tsx` - 인덱싱 현황
 
 ### Frontend - Admin 페이지
-- [ ] `src/app/admin/page.tsx` - 토큰 입력 → 통계 조회 → 대시보드 렌더링
+- [ ] `src/app/admin/page.tsx` - 통계 조회 → 대시보드 렌더링
 
 ### 테스트 (MCP Playwright)
-- [ ] `/admin` 페이지 접근 → 토큰 입력 UI 확인
-- [ ] 토큰 입력 후 통계 데이터 렌더링 확인
+- [ ] `/admin` 페이지 접근 → 통계 데이터 렌더링 확인
 - [ ] 차트/카드 컴포넌트 정상 표시 확인
 
 ---

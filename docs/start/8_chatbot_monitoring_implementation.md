@@ -88,13 +88,10 @@ class Settings(BaseSettings):
     mysql_user: str = "ai_chatbot"
     mysql_password: str = ""
 
-    # Admin
-    admin_token: str = ""
-
     @property
     def database_url(self) -> str:
         return (
-            f"mysql+aiomysql://{self.mysql_user}:{self.mysql_password}"
+            f"mysql+aiomysql://{self.mysql_user}:{quote_plus(self.mysql_password)}"
             f"@{self.mysql_host}:{self.mysql_port}/{self.mysql_database}"
         )
 ```
@@ -252,13 +249,8 @@ async def feedback(request: FeedbackRequest, session: AsyncSession = Depends(get
 #### `/admin/stats` 신규
 
 ```python
-def verify_admin_token(token: str = Header(alias="X-Admin-Token")):
-    if token != settings.admin_token:
-        raise HTTPException(status_code=401, detail="Invalid admin token")
-
 @router.get("/admin/stats")
 async def get_stats(
-    _: str = Depends(verify_admin_token),
     session: AsyncSession = Depends(get_session),
 ):
     repo = QueryLogRepository(session)
