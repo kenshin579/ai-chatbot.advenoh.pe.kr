@@ -56,3 +56,17 @@ export async function sendFeedback(request: FeedbackRequest): Promise<void> {
     throw new Error(`HTTP ${res.status}`);
   }
 }
+
+export interface AdminStats {
+  daily_queries: { date: string; count: number }[];
+  top_questions: { question: string; count: number }[];
+  feedback_score: { total: number; up: number; down: number; up_ratio: number };
+  avg_response_time: number;
+  search_failure_rate: number;
+}
+
+export async function getAdminStats(): Promise<AdminStats> {
+  const res = await fetch(`${API_BASE_URL}/admin/stats`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
