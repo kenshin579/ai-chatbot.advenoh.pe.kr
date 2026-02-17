@@ -90,13 +90,13 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M3: 채팅 UI에 피드백 버튼 추가
 
 ### Frontend - API 클라이언트
-- [ ] `src/lib/api.ts` - ChatResponse에 message_id 추가
-- [ ] `src/lib/api.ts` - FeedbackRequest 인터페이스, sendFeedback 함수 추가
+- [x] `src/lib/api.ts` - ChatResponse에 message_id 추가
+- [x] `src/lib/api.ts` - FeedbackRequest 인터페이스, sendFeedback 함수 추가
 
 ### Frontend - 피드백 UI
-- [ ] `src/components/MessageList.tsx` - AI 메시지 하단에 👍👎 버튼 추가
-- [ ] 피드백 전송 후 버튼 비활성화 (중복 방지)
-- [ ] 피드백 전송 상태 표시 (로딩, 완료)
+- [x] `src/components/MessageList.tsx` - AI 메시지 하단에 👍👎 버튼 추가
+- [x] 피드백 전송 후 버튼 비활성화 (중복 방지)
+- [x] 피드백 전송 상태 표시 (로딩, 완료)
 
 ### 테스트 (MCP Playwright)
 - [ ] 채팅 응답 후 👍👎 버튼 렌더링 확인
