@@ -17,6 +17,14 @@ export interface ChatRequest {
 export interface ChatResponse {
   answer: string;
   sources: Source[];
+  message_id: string;
+}
+
+export interface FeedbackRequest {
+  message_id: string;
+  blog_id: string;
+  question: string;
+  rating: "up" | "down";
 }
 
 const API_BASE_URL =
@@ -35,6 +43,18 @@ export async function sendChat(request: ChatRequest): Promise<ChatResponse> {
   }
 
   return res.json();
+}
+
+export async function sendFeedback(request: FeedbackRequest): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
 }
 
 export interface AdminStats {
