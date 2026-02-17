@@ -65,7 +65,7 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 
 ### 테스트
 - [x] 로컬 MySQL + Liquibase로 스키마 생성 확인
-- [ ] /chat 호출 → query_logs 테이블 기록 확인
+- [x] /chat 호출 → query_logs 테이블 기록 확인
 - [x] Docker 이미지 빌드 → PreSync Job 실행 → 테이블 생성 확인
 
 ---
