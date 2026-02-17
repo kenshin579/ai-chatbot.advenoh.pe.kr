@@ -15,7 +15,8 @@ from app.api.models import (
     Source,
 )
 from app.config import Settings, get_settings
-from app.db.connection import async_session_factory, get_session
+import app.db.connection as db_conn
+from app.db.connection import get_session
 from app.db.repository import QueryLogRepository
 from app.rag.chain import create_rag_chain
 from app.rag.chunker import split_documents
@@ -93,9 +94,9 @@ async def chat(
     response_time_ms = int((time.time() - start_time) * 1000)
 
     # 쿼리 로그 저장
-    if async_session_factory:
+    if db_conn.async_session_factory:
         try:
-            async with async_session_factory() as session:
+            async with db_conn.async_session_factory() as session:
                 repo = QueryLogRepository(session)
                 await repo.save_query_log(
                     message_id=message_id,
