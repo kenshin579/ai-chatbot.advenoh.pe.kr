@@ -14,7 +14,8 @@ def parse_frontmatter(content: str) -> tuple[dict, str]:
 
     try:
         metadata = yaml.safe_load(match.group(1)) or {}
-    except yaml.YAMLError:
+    except (yaml.YAMLError, ValueError):
+        # YAML 파싱 오류 또는 날짜 형식 오류 시 빈 메타데이터 반환
         metadata = {}
 
     body = match.group(2)
@@ -47,8 +48,12 @@ def load_blog_documents(contents_dir: str, blog_id: str) -> list[Document]:
 
     documents = []
     for md_file in sorted(contents_path.rglob("index.md")):
-        content = md_file.read_text(encoding="utf-8")
-        metadata, body = parse_frontmatter(content)
+        try:
+            content = md_file.read_text(encoding="utf-8")
+            metadata, body = parse_frontmatter(content)
+        except Exception as e:
+            print(f"Warning: Failed to load {md_file}: {e}")
+            continue
 
         # contents/ 기준 상대 경로
         relative_path = str(md_file.relative_to(contents_path))
@@ -56,16 +61,20 @@ def load_blog_documents(contents_dir: str, blog_id: str) -> list[Document]:
         parts = Path(relative_path).parts
         category = parts[0] if len(parts) > 1 else ""
 
+        # ChromaDB는 빈 리스트를 허용하지 않으므로 필터링
+        tags = metadata.get("tags", [])
         doc_metadata = {
             "blog_id": blog_id,
             "title": metadata.get("title", md_file.stem),
             "date": str(metadata.get("date", "")),
             "description": metadata.get("description", ""),
-            "tags": metadata.get("tags", []),
             "category": category,
             "source": relative_path,
             "url": build_post_url(relative_path, blog_id),
         }
+        # tags가 비어있지 않은 경우에만 추가
+        if tags:
+            doc_metadata["tags"] = tags
 
         documents.append(Document(page_content=body, metadata=doc_metadata))
 
