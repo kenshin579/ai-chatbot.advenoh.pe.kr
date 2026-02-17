@@ -2,15 +2,9 @@
 
 import { ChatInput } from "@/components/ChatInput";
 import { MessageList } from "@/components/MessageList";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { ChatMessage, Source } from "@/lib/api";
 import { sendChat } from "@/lib/api";
+import { useBlog } from "@/lib/BlogContext";
 import { useCallback, useState } from "react";
 
 interface DisplayMessage extends ChatMessage {
@@ -19,13 +13,8 @@ interface DisplayMessage extends ChatMessage {
   question?: string;
 }
 
-const BLOG_OPTIONS = [
-  { value: "blog-v2", label: "IT Blog" },
-  { value: "investment", label: "Investment Blog" },
-];
-
 export function ChatWindow() {
-  const [blogId, setBlogId] = useState("blog-v2");
+  const { blogId } = useBlog();
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,22 +61,6 @@ export function ChatWindow() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* 블로그 선택 */}
-      <div className="flex items-center justify-end p-2 border-b">
-        <Select value={blogId} onValueChange={setBlogId}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {BLOG_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Messages */}
       <MessageList messages={messages} isLoading={isLoading} blogId={blogId} />
 
