@@ -6,11 +6,16 @@
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 # 프로젝트 루트를 import path에 추가
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# AI_CHATBOT_OPEN_API_KEY 환경 변수를 OPENAI_API_KEY로 매핑
+if 'AI_CHATBOT_OPEN_API_KEY' in os.environ:
+    os.environ['OPENAI_API_KEY'] = os.environ['AI_CHATBOT_OPEN_API_KEY']
 
 from app.config import get_settings
 from app.rag.chunker import split_documents
