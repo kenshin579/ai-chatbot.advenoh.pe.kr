@@ -28,6 +28,23 @@ class Settings(BaseSettings):
     # Index API auth
     rag_index_token: str = ""
 
+    # MySQL
+    mysql_host: str = "localhost"
+    mysql_port: int = 3306
+    mysql_database: str = "ai_chatbot"
+    mysql_user: str = "ai_chatbot"
+    mysql_password: str = ""
+
+    # Admin
+    admin_token: str = ""
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"mysql+aiomysql://{self.mysql_user}:{self.mysql_password}"
+            f"@{self.mysql_host}:{self.mysql_port}/{self.mysql_database}"
+        )
+
     model_config = {"env_file": ".env"}
 
 

@@ -1,6 +1,11 @@
+import logging
+import time
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import AIMessage, HumanMessage
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.models import (
     ChatRequest,
@@ -10,11 +15,15 @@ from app.api.models import (
     Source,
 )
 from app.config import Settings, get_settings
+from app.db.connection import async_session_factory, get_session
+from app.db.repository import QueryLogRepository
 from app.rag.chain import create_rag_chain
 from app.rag.chunker import split_documents
 from app.rag.document_loader import load_blog_documents
 from app.rag.embedder import create_embeddings
 from app.rag.vector_store import VectorStoreManager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 bearer_scheme = HTTPBearer()
@@ -51,6 +60,9 @@ async def chat(
             status_code=400, detail=f"Unknown blog_id: {request.blog_id}"
         )
 
+    start_time = time.time()
+    message_id = str(uuid.uuid4())
+
     store = manager.get_store(request.blog_id)
     chain = create_rag_chain(store, settings.openai_model, settings.top_k)
 
@@ -78,7 +90,30 @@ async def chat(
             seen_urls.add(url)
             sources.append(Source(title=title, url=url))
 
-    return ChatResponse(answer=result["answer"], sources=sources)
+    response_time_ms = int((time.time() - start_time) * 1000)
+
+    # 쿼리 로그 저장
+    if async_session_factory:
+        try:
+            async with async_session_factory() as session:
+                repo = QueryLogRepository(session)
+                await repo.save_query_log(
+                    message_id=message_id,
+                    blog_id=request.blog_id,
+                    question=request.question,
+                    answer=result["answer"],
+                    sources=[s.model_dump() for s in sources],
+                    response_time_ms=response_time_ms,
+                    has_results=len(sources) > 0,
+                )
+        except Exception:
+            logger.exception("쿼리 로그 저장 실패")
+
+    return ChatResponse(
+        answer=result["answer"],
+        sources=sources,
+        message_id=message_id,
+    )
 
 
 @router.post("/index/{blog_id}", response_model=IndexResponse)
