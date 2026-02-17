@@ -90,13 +90,13 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M3: 채팅 UI에 피드백 버튼 추가
 
 ### Frontend - API 클라이언트
-- [ ] `src/lib/api.ts` - ChatResponse에 message_id 추가
-- [ ] `src/lib/api.ts` - FeedbackRequest 인터페이스, sendFeedback 함수 추가
+- [x] `src/lib/api.ts` - ChatResponse에 message_id 추가
+- [x] `src/lib/api.ts` - FeedbackRequest 인터페이스, sendFeedback 함수 추가
 
 ### Frontend - 피드백 UI
-- [ ] `src/components/MessageList.tsx` - AI 메시지 하단에 👍👎 버튼 추가
-- [ ] 피드백 전송 후 버튼 비활성화 (중복 방지)
-- [ ] 피드백 전송 상태 표시 (로딩, 완료)
+- [x] `src/components/MessageList.tsx` - AI 메시지 하단에 👍👎 버튼 추가
+- [x] 피드백 전송 후 버튼 비활성화 (중복 방지)
+- [x] 피드백 전송 상태 표시 (로딩, 완료)
 
 ### 테스트 (MCP Playwright)
 - [ ] 채팅 응답 후 👍👎 버튼 렌더링 확인
@@ -108,18 +108,18 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M4: Admin 통계 API
 
 ### Backend - /admin/stats API
-- [ ] `app/api/routes.py` - GET /admin/stats 엔드포인트 구현
-- [ ] `app/db/repository.py` - get_daily_counts (일별 질문 수)
-- [ ] `app/db/repository.py` - get_top_questions (인기 질문 TOP 10)
-- [ ] `app/db/repository.py` - get_feedback_ratio (👍👎 비율)
-- [ ] `app/db/repository.py` - get_avg_response_time (평균 응답 시간)
-- [ ] `app/db/repository.py` - get_search_failure_rate (검색 실패율)
+- [x] `app/api/routes.py` - GET /admin/stats 엔드포인트 구현
+- [x] `app/db/repository.py` - get_daily_counts (일별 질문 수)
+- [x] `app/db/repository.py` - get_top_questions (인기 질문 TOP 10)
+- [x] `app/db/repository.py` - get_feedback_ratio (👍👎 비율)
+- [x] `app/db/repository.py` - get_avg_response_time (평균 응답 시간)
+- [x] `app/db/repository.py` - get_search_failure_rate (검색 실패율)
 
 ### Charts
 - [x] `charts/gateway/values.yaml` - `/admin/stats` 라우트 추가
 
 ### 테스트
-- [ ] GET /admin/stats → 통계 데이터 반환 확인
+- [x] GET /admin/stats → 통계 데이터 반환 확인
 
 ---
 
@@ -148,8 +148,8 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 
 ## 배포
 
-- [ ] Backend Docker 이미지 빌드 및 푸시 (`kenshin579/ai-chatbot-be:<new-version>`)
-- [ ] Frontend Docker 이미지 빌드 및 푸시 (`kenshin579/ai-chatbot-fe:<new-version>`)
-- [ ] Charts 버전 업데이트 (ai-chatbot-be, ai-chatbot-fe values.yaml)
+- [x] Backend Docker 이미지 빌드 및 푸시 (`kenshin579/ai-chatbot-be:0.5.5`)
+- [x] Frontend Docker 이미지 빌드 및 푸시 (`kenshin579/ai-chatbot-fe:0.5.6`)
+- [x] Charts 버전 업데이트 (ai-chatbot-be, ai-chatbot-fe values.yaml)
 - [ ] PR 생성 → main merge → release 브랜치 푸시
 - [ ] ArgoCD sync 확인
