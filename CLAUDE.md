@@ -71,6 +71,20 @@ make docker-push fe|be|all    # Docker 이미지 빌드 & 푸시
 - Pydantic Settings + `.env` 파일
 - `@lru_cache`로 설정 싱글톤
 
+## Git Workflow
+
+**NEVER commit directly to main/master branch.** Always use feature branches.
+
+```bash
+# 브랜치 생성
+git checkout main && git pull origin main
+git checkout -b feature/{issue-number}-{name}   # 새 기능
+git checkout -b fix/{issue-number}-{name}       # 버그 수정 (hotfix 포함)
+```
+
+- PR 생성 후 merge (직접 push 금지)
+- hotfix도 반드시 `fix/` 브랜치 → PR → merge
+
 ## Environment Variables
 
 `backend/.env.example` 참조. 필수: `OPENAI_API_KEY`, `RAG_INDEX_TOKEN`
