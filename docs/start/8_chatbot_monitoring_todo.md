@@ -14,7 +14,7 @@
 ### MySQL DB 수동 생성 (배포 전 1회 실행)
 
 ```bash
-kubectl exec -it -n app mysql-0 -- mysql -u root -p'nJ*BRd2sujw'
+kubectl exec -it -n app mysql-0 -- mysql -u root -p'<ROOT_PASSWORD>'
 ```
 
 ```sql
@@ -24,7 +24,7 @@ COLLATE utf8mb4_0900_ai_ci;
 
 CREATE USER IF NOT EXISTS 'ai_chatbot'@'%'
 IDENTIFIED WITH mysql_native_password
-BY 'Ck9#mPx2vLw!';
+BY '<USER_PASSWORD>';
 
 GRANT ALL PRIVILEGES ON `ai_chatbot`.* TO 'ai_chatbot'@'%';
 
@@ -34,6 +34,8 @@ FLUSH PRIVILEGES;
 SHOW DATABASES;
 SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ```
+
+> **Note**: 실제 비밀번호는 `charts/mysql/values.yaml` 참조
 
 ### Charts - MySQL initdbScripts 추가 (향후 재생성 대비)
 - [ ] `charts/mysql/values.yaml` - `ai_chatbot` DB 및 사용자를 initdbScripts에 추가
