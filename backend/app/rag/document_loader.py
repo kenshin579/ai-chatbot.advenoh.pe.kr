@@ -72,9 +72,9 @@ def load_blog_documents(contents_dir: str, blog_id: str) -> list[Document]:
             "source": relative_path,
             "url": build_post_url(relative_path, blog_id),
         }
-        # tags가 비어있지 않은 경우에만 추가
+        # tags가 비어있지 않은 경우에만 추가 (모두 문자열로 변환)
         if tags:
-            doc_metadata["tags"] = tags
+            doc_metadata["tags"] = [str(tag) for tag in tags]
 
         documents.append(Document(page_content=body, metadata=doc_metadata))
 
