@@ -20,6 +20,7 @@ class Source(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: list[Source]
+    message_id: str = ""
 
 
 class IndexResponse(BaseModel):
