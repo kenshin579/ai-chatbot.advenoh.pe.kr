@@ -15,6 +15,8 @@ import { useCallback, useState } from "react";
 
 interface DisplayMessage extends ChatMessage {
   sources?: Source[];
+  message_id?: string;
+  question?: string;
 }
 
 const BLOG_OPTIONS = [
@@ -53,6 +55,8 @@ export function ChatWindow() {
           role: "ai",
           content: response.answer,
           sources: response.sources,
+          message_id: response.message_id,
+          question,
         };
         setMessages((prev) => [...prev, aiMessage]);
       } catch (err) {
@@ -86,7 +90,7 @@ export function ChatWindow() {
       </div>
 
       {/* Messages */}
-      <MessageList messages={messages} isLoading={isLoading} />
+      <MessageList messages={messages} isLoading={isLoading} blogId={blogId} />
 
       {/* Error */}
       {error && (
