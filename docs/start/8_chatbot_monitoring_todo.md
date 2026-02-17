@@ -38,16 +38,16 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 > **Note**: 실제 비밀번호는 `charts/mysql/values.yaml` 참조
 
 ### Charts - MySQL initdbScripts 추가 (향후 재생성 대비)
-- [ ] `charts/mysql/values.yaml` - `ai_chatbot` DB 및 사용자를 initdbScripts에 추가
+- [x] `charts/mysql/values.yaml` - `ai_chatbot` DB 및 사용자를 initdbScripts에 추가
 
 ### Charts - ai-chatbot-be PreSync Job
-- [ ] `charts/ai-chatbot-be/values.yaml` - MySQL 연결 설정 + liquibase 설정 추가
-- [ ] `charts/ai-chatbot-be/templates/secret.yaml` - PreSync 어노테이션(wave 0) + MySQL/ADMIN_TOKEN 추가
-- [ ] `charts/ai-chatbot-be/templates/configmap.yaml` - MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE 환경변수 추가
-- [ ] `charts/ai-chatbot-be/templates/presync-liquibase.yaml` - 신규 생성 (inspireme-be 패턴 참고)
-  - [ ] initContainer 1: copy-changelog (앱 이미지에서 changelog/lib 복사)
-  - [ ] initContainer 2: run-liquibase (liquibase status + update)
-  - [ ] container: placeholder (email 비활성화 시)
+- [x] `charts/ai-chatbot-be/values.yaml` - MySQL 연결 설정 + liquibase 설정 추가
+- [x] `charts/ai-chatbot-be/templates/secret.yaml` - PreSync 어노테이션(wave 0) + MySQL/ADMIN_TOKEN 추가
+- [x] `charts/ai-chatbot-be/templates/configmap.yaml` - MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE 환경변수 추가
+- [x] `charts/ai-chatbot-be/templates/presync-liquibase.yaml` - 신규 생성 (inspireme-be 패턴 참고)
+  - [x] initContainer 1: copy-changelog (앱 이미지에서 changelog/lib 복사)
+  - [x] initContainer 2: run-liquibase (liquibase status + update)
+  - [x] container: placeholder (email 비활성화 시)
 
 ### Backend - DB 모듈
 - [x] `pyproject.toml` - `sqlalchemy[asyncio]`, `aiomysql` 의존성 추가
@@ -79,7 +79,7 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 - [ ] LangSmith Feedback API 연동 (langsmith Client.create_feedback)
 
 ### Charts - Gateway 라우트
-- [ ] `charts/gateway/values.yaml` - `/feedback` 라우트 추가 (→ ai-chatbot-be-service)
+- [x] `charts/gateway/values.yaml` - `/feedback` 라우트 추가 (→ ai-chatbot-be-service)
 
 ### 테스트
 - [ ] POST /feedback API 호출 → feedbacks 테이블 저장 확인
@@ -118,8 +118,8 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 - [ ] `app/db/repository.py` - get_search_failure_rate (검색 실패율)
 
 ### Charts
-- [ ] `charts/ai-chatbot-be/templates/secret.yaml` - ADMIN_TOKEN 추가
-- [ ] `charts/gateway/values.yaml` - `/admin/stats` 라우트 추가
+- [x] `charts/ai-chatbot-be/templates/secret.yaml` - ADMIN_TOKEN 추가
+- [x] `charts/gateway/values.yaml` - `/admin/stats` 라우트 추가
 
 ### 테스트
 - [ ] GET /admin/stats (토큰 없음) → 401 확인
