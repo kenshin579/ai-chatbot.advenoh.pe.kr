@@ -108,18 +108,18 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M4: Admin 통계 API
 
 ### Backend - /admin/stats API
-- [ ] `app/api/routes.py` - GET /admin/stats 엔드포인트 구현
-- [ ] `app/db/repository.py` - get_daily_counts (일별 질문 수)
-- [ ] `app/db/repository.py` - get_top_questions (인기 질문 TOP 10)
-- [ ] `app/db/repository.py` - get_feedback_ratio (👍👎 비율)
-- [ ] `app/db/repository.py` - get_avg_response_time (평균 응답 시간)
-- [ ] `app/db/repository.py` - get_search_failure_rate (검색 실패율)
+- [x] `app/api/routes.py` - GET /admin/stats 엔드포인트 구현
+- [x] `app/db/repository.py` - get_daily_counts (일별 질문 수)
+- [x] `app/db/repository.py` - get_top_questions (인기 질문 TOP 10)
+- [x] `app/db/repository.py` - get_feedback_ratio (👍👎 비율)
+- [x] `app/db/repository.py` - get_avg_response_time (평균 응답 시간)
+- [x] `app/db/repository.py` - get_search_failure_rate (검색 실패율)
 
 ### Charts
 - [x] `charts/gateway/values.yaml` - `/admin/stats` 라우트 추가
 
 ### 테스트
-- [ ] GET /admin/stats → 통계 데이터 반환 확인
+- [x] GET /admin/stats → 통계 데이터 반환 확인
 
 ---
 
