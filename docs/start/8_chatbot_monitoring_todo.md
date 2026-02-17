@@ -73,17 +73,17 @@ SELECT user, host FROM mysql.user WHERE user = 'ai_chatbot';
 ## M2: 사용자 피드백 API + LangSmith 연동
 
 ### Backend - /feedback API
-- [ ] `app/api/models.py` - FeedbackRequest 모델 추가
-- [ ] `app/api/routes.py` - POST /feedback 엔드포인트 구현
-- [ ] `app/db/repository.py` - save_feedback 메서드 추가
-- [ ] LangSmith Feedback API 연동 (langsmith Client.create_feedback)
+- [x] `app/api/models.py` - FeedbackRequest 모델 추가
+- [x] `app/api/routes.py` - POST /feedback 엔드포인트 구현
+- [x] `app/db/repository.py` - save_feedback 메서드 추가
+- [x] LangSmith Feedback API 연동 (langsmith Client.create_feedback) - LANGSMITH_API_KEY 설정 시 활성화
 
 ### Charts - Gateway 라우트
 - [x] `charts/gateway/values.yaml` - `/feedback` 라우트 추가 (→ ai-chatbot-be-service)
 
 ### 테스트
-- [ ] POST /feedback API 호출 → feedbacks 테이블 저장 확인
-- [ ] LangSmith 대시보드에서 피드백 데이터 확인
+- [x] POST /feedback API 호출 → feedbacks 테이블 저장 확인
+- [ ] LangSmith 대시보드에서 피드백 데이터 확인 (LANGSMITH_API_KEY 설정 후 확인 필요)
 
 ---
 

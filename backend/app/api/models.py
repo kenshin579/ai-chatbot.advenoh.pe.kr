@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -30,4 +32,15 @@ class IndexResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    status: str
+
+
+class FeedbackRequest(BaseModel):
+    message_id: str
+    blog_id: str
+    question: str
+    rating: Literal["up", "down"]
+
+
+class FeedbackResponse(BaseModel):
     status: str
