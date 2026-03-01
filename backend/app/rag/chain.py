@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.retrievers import RetrieverLike
 from langchain_openai import ChatOpenAI
 
-from app.prompts.templates import SYSTEM_PROMPT
+from app.prompts.templates import INSPIREME_SYSTEM_PROMPT, SYSTEM_PROMPT
 
 
 def create_rag_chain(
@@ -13,6 +13,7 @@ def create_rag_chain(
     model: str,
     top_k: int = 5,
     retriever: RetrieverLike | None = None,
+    blog_id: str | None = None,
 ):
     """대화 히스토리를 지원하는 RAG 체인을 생성한다.
 
@@ -39,9 +40,12 @@ def create_rag_chain(
         llm, retriever, contextualize_prompt
     )
 
+    # blog_id에 따라 프롬프트 분기
+    system_prompt = INSPIREME_SYSTEM_PROMPT if blog_id == "inspireme" else SYSTEM_PROMPT
+
     # QA 체인
     qa_prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
+        ("system", system_prompt),
         MessagesPlaceholder("chat_history"),
         ("human", "{input}"),
     ])
