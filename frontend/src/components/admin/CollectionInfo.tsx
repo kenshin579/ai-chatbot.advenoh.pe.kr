@@ -7,6 +7,7 @@ export function CollectionInfo({ blogId, totalQueries }: CollectionInfoProps) {
   const collections = [
     { id: "blog-v2", label: "IT Blog" },
     { id: "investment", label: "Investment Blog" },
+    { id: "inspireme", label: "InspireMe" },
   ];
 
   return (

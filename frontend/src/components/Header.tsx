@@ -25,11 +25,13 @@ import { useBlog } from "@/lib/BlogContext";
 const BLOG_OPTIONS = [
   { value: "blog-v2", label: "IT Blog" },
   { value: "investment", label: "Investment Blog" },
+  { value: "inspireme", label: "InspireMe" },
 ];
 
 const EXTERNAL_LINKS = [
   { label: "IT Blog", url: "https://blog-v2.advenoh.pe.kr" },
   { label: "Investment Blog", url: "https://investment.advenoh.pe.kr" },
+  { label: "InspireMe", url: "https://inspire-me.advenoh.pe.kr" },
 ];
 
 export function Header() {
