@@ -1,4 +1,7 @@
 import logging
+import shutil
+import subprocess
+import tempfile
 import time
 import uuid
 
@@ -30,6 +33,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 bearer_scheme = HTTPBearer()
+
+BLOG_REPOS = {
+    "blog-v2": "https://github.com/kenshin579/blog-v2.advenoh.pe.kr.git",
+    "investment": "https://github.com/kenshin579/investment.advenoh.pe.kr.git",
+}
 
 
 def get_vector_store_manager(
@@ -132,21 +140,27 @@ async def reindex(
             status_code=400, detail=f"Unknown blog_id: {blog_id}"
         )
 
-    contents_dirs = {
-        "blog-v2": "../../blog-v2.advenoh.pe.kr/contents/",
-        "investment": "../../investment.advenoh.pe.kr/contents/",
-    }
-    contents_dir = contents_dirs.get(blog_id)
-    if not contents_dir:
+    if blog_id not in BLOG_REPOS:
         raise HTTPException(
-            status_code=400, detail=f"No contents directory for: {blog_id}"
+            status_code=400, detail=f"No repository for: {blog_id}"
         )
 
-    # 기존 Collection 삭제 후 재인덱싱
     manager.delete_collection(blog_id)
-    documents = load_blog_documents(contents_dir, blog_id)
-    chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
-    indexed = manager.index_documents(blog_id, chunks)
+
+    clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
+            check=True,
+            capture_output=True,
+        )
+        contents_dir = f"{clone_dir}/contents/"
+
+        documents = load_blog_documents(contents_dir, blog_id)
+        chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
+        indexed = manager.index_documents(blog_id, chunks)
+    finally:
+        shutil.rmtree(clone_dir, ignore_errors=True)
 
     return IndexResponse(status="ok", blog_id=blog_id, indexed_chunks=indexed)
 
