@@ -27,6 +27,7 @@ from app.rag.chain import create_rag_chain
 from app.rag.chunker import split_documents
 from app.rag.document_loader import load_blog_documents
 from app.rag.embedder import create_embeddings
+from app.rag.inspireme_loader import load_inspireme_documents
 from app.rag.vector_store import VectorStoreManager
 
 logger = logging.getLogger(__name__)
@@ -140,27 +141,30 @@ async def reindex(
             status_code=400, detail=f"Unknown blog_id: {blog_id}"
         )
 
-    if blog_id not in BLOG_REPOS:
+    manager.delete_collection(blog_id)
+
+    if blog_id == "inspireme":
+        documents = await load_inspireme_documents(settings.inspireme_api_url)
+        indexed = manager.index_documents(blog_id, documents)
+    elif blog_id in BLOG_REPOS:
+        clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
+        try:
+            subprocess.run(
+                ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
+                check=True,
+                capture_output=True,
+            )
+            contents_dir = f"{clone_dir}/contents/"
+
+            documents = load_blog_documents(contents_dir, blog_id)
+            chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
+            indexed = manager.index_documents(blog_id, chunks)
+        finally:
+            shutil.rmtree(clone_dir, ignore_errors=True)
+    else:
         raise HTTPException(
             status_code=400, detail=f"No repository for: {blog_id}"
         )
-
-    manager.delete_collection(blog_id)
-
-    clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
-    try:
-        subprocess.run(
-            ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
-            check=True,
-            capture_output=True,
-        )
-        contents_dir = f"{clone_dir}/contents/"
-
-        documents = load_blog_documents(contents_dir, blog_id)
-        chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
-        indexed = manager.index_documents(blog_id, chunks)
-    finally:
-        shutil.rmtree(clone_dir, ignore_errors=True)
 
     return IndexResponse(status="ok", blog_id=blog_id, indexed_chunks=indexed)
 

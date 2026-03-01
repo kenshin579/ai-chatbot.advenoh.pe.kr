@@ -24,7 +24,11 @@ class Settings(BaseSettings):
     blog_collections: dict[str, str] = {
         "blog-v2": "IT 블로그",
         "investment": "투자 블로그",
+        "inspireme": "명언",
     }
+
+    # inspireme API URL (인덱싱 시 사용)
+    inspireme_api_url: str = "http://localhost:8080"
 
     # Index API auth
     rag_index_token: str = ""
