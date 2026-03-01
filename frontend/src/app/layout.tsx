@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Blog Q&A Chatbot",
+  title: "Chatbot Playground",
   description: "RAG 기반 블로그 Q&A 챗봇",
 };
 

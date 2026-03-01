@@ -43,7 +43,7 @@ export function Header() {
     <header className="flex h-14 items-center justify-between border-b px-4">
       <div className="flex items-center gap-3">
         <Link href="/" className="text-lg font-semibold hover:opacity-80">
-          Blog Q&A Chatbot
+          Chatbot Playground
         </Link>
         {isChat && (
           <Select value={blogId} onValueChange={setBlogId}>
