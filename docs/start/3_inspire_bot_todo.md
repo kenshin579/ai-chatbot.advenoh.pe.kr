@@ -1,23 +1,28 @@
 # InspireMe 챗봇 - TODO 체크리스트
 
-## M1: Document Loader — DB → Document 변환 로직
+## M1: Document Loader — API → Document 변환 로직
 
 ### Backend - inspireme_loader.py
 
 - [ ] `app/rag/inspireme_loader.py` — 신규 파일 생성
-  - [ ] `QUOTES_QUERY` — quotes + quote_translations + authors + author_translations JOIN 쿼리
-  - [ ] `AUTHORS_QUERY` — authors + author_translations JOIN 쿼리
-  - [ ] `_build_quote_document()` — 명언 DB 레코드 → Document 변환 (ko/en 번역 포함)
-  - [ ] `_build_author_document()` — 저자 DB 레코드 → Document 변환 (ko/en 번역 포함)
-  - [ ] `load_inspireme_documents()` — DB 연결 → Document 리스트 반환
+  - [ ] `_build_quote_document()` — 명언 API 응답 → Document 변환 (content + translations 포함)
+  - [ ] `_build_author_document()` — 저자 API 응답(ko/en) → Document 변환 (병합)
+  - [ ] `_fetch_all_quotes(client)` — 명언 목록 페이지네이션 전체 로드 (결과 < limit이면 종료)
+  - [ ] `_fetch_all_authors(client, lang)` — 저자 목록 페이지네이션 전체 로드 (total 기반 루프)
+  - [ ] `load_inspireme_documents(api_url)` — httpx로 inspireme API 호출 → Document 리스트 반환
+    - [ ] `GET /api/quotes?limit=100&offset=N` — 명언 페이지네이션 로드
+    - [ ] `GET /api/authors?lang=ko` + `lang=en` — 저자 페이지네이션 로드 후 id 기준 병합
+
+### Backend - 의존성
+
+- [ ] `pyproject.toml` — `httpx` 의존성 추가
 
 ### Backend - 테스트
 
 - [ ] `tests/test_inspireme_loader.py` — 신규 테스트 파일
-  - [ ] `_build_quote_document()` 변환 정확성 (page_content, metadata)
-  - [ ] `_build_author_document()` 변환 정확성
-  - [ ] 다국어 번역 포함 여부 (ko + en 모두 page_content에 포함)
-  - [ ] 빈 번역 처리 (content_ko 또는 content_en이 None인 경우 fallback)
+  - [ ] `_build_quote_document()` — API 응답 → Document 변환 정확성 (page_content, metadata)
+  - [ ] `_build_author_document()` — ko/en 병합 변환 정확성
+  - [ ] 빈 번역/authorInfo 없는 경우 fallback
   - [ ] URL 생성 정확성 (`/quotes/{id}`, `/authors/{slug}`)
 
 ---
@@ -27,26 +32,25 @@
 ### Backend - config.py
 
 - [ ] `app/config.py` — `blog_collections`에 `"inspireme": "명언"` 추가
-- [ ] `app/config.py` — inspireme DB 접속 설정 추가
-  - [ ] `inspireme_mysql_host`, `inspireme_mysql_port`, `inspireme_mysql_database`
-  - [ ] `inspireme_mysql_user`, `inspireme_mysql_password`
-  - [ ] `inspireme_database_url` 프로퍼티 추가
+- [ ] `app/config.py` — `inspireme_api_url: str = "http://localhost:8080"` 추가
 
 ### Backend - routes.py
 
 - [ ] `app/api/routes.py` — `/index/{blog_id}` 엔드포인트에 inspireme 분기 추가
-  - [ ] `blog_id == "inspireme"`인 경우 `load_inspireme_documents()` 호출
-  - [ ] 청킹 없이 바로 `index_documents()` 호출
+  - [ ] 기존 `BLOG_REPOS` git clone 분기 **앞에** `blog_id == "inspireme"` 분기 추가
+  - [ ] inspireme: `load_inspireme_documents(settings.inspireme_api_url)` 호출
+  - [ ] 청킹 없이 바로 `manager.index_documents()` 호출
+  - [ ] 기존 `elif blog_id in BLOG_REPOS` (git clone) / `else` (에러) 분기는 유지
 
 ### Backend - 환경변수
 
-- [ ] `backend/.env.example` — INSPIREME_MYSQL_* 환경변수 추가
-- [ ] `backend/.env` — 로컬 개발용 inspireme DB 접속 정보 설정
+- [ ] `backend/.env.example` — `INSPIREME_API_URL` 환경변수 추가
+- [ ] `backend/.env` — 로컬 개발용 `INSPIREME_API_URL=http://localhost:8080` 설정
 
 ### Backend - 테스트
 
-- [ ] `tests/test_api.py` — `POST /index/inspireme` 정상 인덱싱 확인 (mock DB)
-- [ ] 로컬 환경에서 실제 inspireme DB 연결 → 인덱싱 → ChromaDB 저장 확인
+- [ ] `tests/test_api.py` — `POST /index/inspireme` 정상 인덱싱 확인 (mock httpx)
+- [ ] 로컬 환경에서 inspireme 백엔드 실행 → API 호출 → 인덱싱 → ChromaDB 저장 확인
 
 ---
 
@@ -129,20 +133,14 @@
 
 ---
 
-## M5: 피드백 연동 + GitHub Actions + 마무리
+## M5: 피드백 연동 + 마무리
 
 ### Charts 변경
 
-- [ ] `charts/ai-chatbot-be/values.yaml` — inspireme MySQL 환경변수 추가
-- [ ] `charts/ai-chatbot-be/templates/configmap.yaml` — INSPIREME_MYSQL_HOST/PORT/DATABASE 추가
-- [ ] `charts/ai-chatbot-be/templates/secret.yaml` — INSPIREME_MYSQL_USER/PASSWORD 추가
+- [ ] `charts/ai-chatbot-be/values.yaml` — `config.inspiremeApiUrl` 추가
+- [ ] `charts/ai-chatbot-be/templates/configmap.yaml` — `INSPIREME_API_URL` 환경변수 추가
 - [ ] `charts/inspireme-fe/values.yaml` — CHATBOT_API_URL 환경변수 추가
-
-### GitHub Actions (선택)
-
-- [ ] `inspireme.advenoh.pe.kr/.github/workflows/reindex-chatbot.yml` — 재인덱싱 워크플로우
-  - [ ] 트리거: push to main (backend/db/changes/** 변경 시)
-  - [ ] 동작: `curl -X POST .../index/inspireme` + Bearer token
+- [ ] `charts/cronjob/ai-chatbot-reindex/values.yaml` — `config.blogIds`에 `inspireme` 추가 (`"blog-v2,investment,inspireme"`)
 
 ### 배포
 

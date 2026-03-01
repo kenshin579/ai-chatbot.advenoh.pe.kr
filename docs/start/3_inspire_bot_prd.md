@@ -38,17 +38,17 @@
 
 ## 3. 핵심 기능
 
-1. **DB → Document 변환**: MySQL의 명언/저자 데이터를 LangChain Document로 변환하여 ChromaDB에 인덱싱
+1. **API → Document 변환**: inspireme 백엔드 API에서 명언/저자 데이터를 가져와 LangChain Document로 변환하여 ChromaDB에 인덱싱
 2. **명언 특화 RAG**: 짧은 텍스트에 최적화된 검색/답변 전략
 3. **inspireme 프론트엔드 챗봇 UI**: 기존 사이트에 채팅 위젯 통합
 
 ---
 
-## 4. 데이터 소스 전략 (DB → Document 변환)
+## 4. 데이터 소스 전략 (API → Document 변환)
 
 ### 4.1 변환 방식
 
-MySQL DB에서 명언과 저자 데이터를 읽어 LangChain `Document` 객체로 변환한다. 명언은 1-2문장으로 짧기 때문에 **청킹 없이 1 명언 = 1 Document**로 처리한다.
+inspireme 백엔드 API(`GET /api/quotes`, `GET /api/authors`)를 호출하여 데이터를 가져온 후 LangChain `Document` 객체로 변환한다. DB에 직접 접속하지 않으므로 스키마 변경에 영향받지 않는다. 명언은 1-2문장으로 짧기 때문에 **청킹 없이 1 명언 = 1 Document**로 처리한다.
 
 #### Document 구조 — 명언
 
@@ -109,31 +109,31 @@ Document(
 
 ```mermaid
 flowchart LR
-    A["POST /index/inspireme"] --> B["MySQL 접속"]
-    B --> C["quotes + quote_translations JOIN"]
-    C --> D["authors + author_translations JOIN"]
-    D --> E["Document 객체 변환"]
+    A["POST /index/inspireme"] --> B["inspireme API 호출"]
+    B --> C["GET /api/quotes (translations 포함)"]
+    B --> D["GET /api/authors (ko + en)"]
+    C --> E["Document 객체 변환"]
+    D --> E
     E --> F["ChromaDB 'inspireme' collection에 저장"]
 ```
 
-### 4.4 DB 쿼리
+### 4.4 API 호출
 
-```sql
--- 명언 + 번역 조회
-SELECT q.id, q.author, q.author_id, q.topics, q.tags,
-       qt_ko.content AS content_ko, qt_en.content AS content_en
-FROM quotes q
-LEFT JOIN quote_translations qt_ko ON q.id = qt_ko.quote_id AND qt_ko.lang = 'ko'
-LEFT JOIN quote_translations qt_en ON q.id = qt_en.quote_id AND qt_en.lang = 'en'
-
--- 저자 + 번역 조회
-SELECT a.id, a.slug, a.birth_year, a.death_year, a.nationality,
-       at_ko.name AS name_ko, at_ko.bio AS bio_ko,
-       at_en.name AS name_en, at_en.bio AS bio_en
-FROM authors a
-LEFT JOIN author_translations at_ko ON a.id = at_ko.author_id AND at_ko.lang = 'ko'
-LEFT JOIN author_translations at_en ON a.id = at_en.author_id AND at_en.lang = 'en'
 ```
+GET /api/quotes?limit=1000&offset=0
+  → 명언 목록 (페이지네이션, 결과 < limit이면 마지막 페이지)
+  → 응답: [QuoteResponse] (content + translations + authorInfo + topics + tags)
+
+GET /api/authors?lang=ko&limit=1000&offset=0
+GET /api/authors?lang=en&limit=1000&offset=0
+  → 저자 목록 (ko/en 각각 페이지네이션, total 기반 종료 판단 후 id 기준 병합)
+  → 응답: {authors: [AuthorResponse], total: number}
+```
+
+**DB 직접 접속 대비 장점**:
+- DB 스키마 변경 시 ai-chatbot 수정 불필요 (API 응답 구조만 유지되면 됨)
+- DB 접속 정보 (host, port, user, password) 관리 불필요
+- inspireme 백엔드가 데이터 접근의 단일 책임을 가짐
 
 ---
 
@@ -144,16 +144,16 @@ LEFT JOIN author_translations at_en ON a.id = at_en.author_id AND at_en.lang = '
 ```
 backend/app/rag/
 ├── document_loader.py          # 기존: Markdown 파일 로드
-└── inspireme_loader.py         # 신규: MySQL DB에서 명언/저자 로드
+└── inspireme_loader.py         # 신규: inspireme API에서 명언/저자 로드
 ```
 
 ```python
 # backend/app/rag/inspireme_loader.py
 
-async def load_inspireme_documents(db_url: str) -> list[Document]:
-    """MySQL에서 명언/저자 데이터를 로드하여 Document 리스트로 반환"""
-    quotes_docs = await _load_quotes(db_url)
-    author_docs = await _load_authors(db_url)
+async def load_inspireme_documents(api_url: str) -> list[Document]:
+    """inspireme API에서 명언/저자 데이터를 로드하여 Document 리스트로 반환"""
+    # GET /api/quotes → 명언 Document 변환
+    # GET /api/authors?lang=ko + lang=en → 저자 Document 변환 (ko/en 병합)
     return quotes_docs + author_docs
 ```
 
@@ -167,29 +167,36 @@ blog_collections = {
     "inspireme": "명언",          # 신규
 }
 
-# inspireme DB 접속 정보 (환경변수)
-inspireme_mysql_host: str = "localhost"
-inspireme_mysql_port: int = 3306
-inspireme_mysql_database: str = "inspireme"
-inspireme_mysql_user: str = "inspireme"
-inspireme_mysql_password: str = ""
+# inspireme API URL (환경변수)
+inspireme_api_url: str = "http://localhost:8080"
 ```
 
 ### 5.3 인덱싱 엔드포인트 확장
 
 ```python
-# backend/app/api/routes.py — /index/{blog_id} 분기 추가
+# backend/app/api/routes.py — /index/{blog_id}에 inspireme 분기 추가
+# 참고: blog-v2/investment는 자동 인덱싱(#2)에서 git clone 방식으로 변경됨
+
 @router.post("/index/{blog_id}")
-async def index_documents(blog_id: str, ...):
+async def reindex(blog_id: str, ...):
+    manager.delete_collection(blog_id)
+
     if blog_id == "inspireme":
-        documents = await load_inspireme_documents(db_url)
-        # 청킹 없이 바로 인덱싱 (명언은 이미 짧음)
-        count = vector_store_manager.index_documents(blog_id, documents)
+        # inspireme API에서 로드 (청킹 불필요 — 명언은 이미 짧음)
+        documents = await load_inspireme_documents(settings.inspireme_api_url)
+        indexed = manager.index_documents(blog_id, documents)
+    elif blog_id in BLOG_REPOS:
+        # git clone 방식으로 Markdown 파일 로드 + 청킹
+        clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
+        try:
+            subprocess.run(["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir], ...)
+            documents = load_blog_documents(f"{clone_dir}/contents/", blog_id)
+            chunks = split_documents(documents, ...)
+            indexed = manager.index_documents(blog_id, chunks)
+        finally:
+            shutil.rmtree(clone_dir, ignore_errors=True)
     else:
-        # 기존: Markdown 파일 로드 + 청킹
-        documents = load_blog_documents(contents_dir)
-        chunks = chunk_documents(documents)
-        count = vector_store_manager.index_documents(blog_id, chunks)
+        raise HTTPException(status_code=400, detail=f"No repository for: {blog_id}")
 ```
 
 ### 5.4 inspireme 전용 프롬프트
@@ -304,29 +311,8 @@ export async function sendChat(question: string, chatHistory: ChatMessage[]) {
 | 방식 | 설명 | 적용 |
 |------|------|------|
 | API 호출 | `POST /index/inspireme` + Bearer token | 수동 재인덱싱 |
-| inspireme 배포 시 | inspireme 백엔드 배포 후 webhook으로 인덱싱 트리거 | 자동 (GitHub Actions) |
+| K8s CronJob | 기존 `ai-chatbot-reindex` CronJob의 `config.blogIds`에 `inspireme` 추가 | 주간 자동 (자동 인덱싱 #2에서 구축) |
 | 명언 CRUD 시 | inspireme 백엔드에서 명언 생성/수정/삭제 후 ai-chatbot API 호출 | 실시간 반영 (향후) |
-
-### 7.2 GitHub Actions 워크플로우
-
-```yaml
-# inspireme.advenoh.pe.kr/.github/workflows/reindex-chatbot.yml
-name: Reindex Chatbot
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/db/changes/**'  # DB 마이그레이션 변경 시
-
-jobs:
-  reindex:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger reindex
-        run: |
-          curl -X POST "https://ai-chatbot.advenoh.pe.kr/index/inspireme" \
-            -H "Authorization: Bearer ${{ secrets.RAG_INDEX_TOKEN }}"
-```
 
 ---
 
@@ -335,12 +321,8 @@ jobs:
 ### 8.1 ai-chatbot 백엔드 (`backend/.env`)
 
 ```bash
-# inspireme DB 접속 (인덱싱 시 사용)
-INSPIREME_MYSQL_HOST=mysql-headless.app.svc.cluster.local
-INSPIREME_MYSQL_PORT=3306
-INSPIREME_MYSQL_DATABASE=inspireme
-INSPIREME_MYSQL_USER=inspireme
-INSPIREME_MYSQL_PASSWORD=<password>
+# inspireme API URL (인덱싱 시 사용)
+INSPIREME_API_URL=http://inspireme-be-service.app.svc.cluster.local
 ```
 
 ### 8.2 inspireme 프론트엔드
@@ -356,11 +338,11 @@ NEXT_PUBLIC_AI_CHATBOT_API_URL=https://ai-chatbot.advenoh.pe.kr
 
 | 단계 | 작업 | 산출물 |
 |------|------|--------|
-| M1 | `inspireme_loader.py` — DB → Document 변환 로직 + 테스트 | Document Loader |
+| M1 | `inspireme_loader.py` — API → Document 변환 로직 + 테스트 | Document Loader |
 | M2 | `/index/inspireme` 엔드포인트 확장 + config 추가 | 인덱싱 API |
 | M3 | inspireme 전용 프롬프트 + 체인 분기 | RAG 체인 |
 | M4 | inspireme 프론트엔드 챗봇 UI (플로팅 버튼 + 패널) | 챗봇 UI |
-| M5 | 피드백 연동 + 추천 질문 + GitHub Actions 자동 인덱싱 | 완성 |
+| M5 | 피드백 연동 + 추천 질문 + CronJob blogIds 추가 | 완성 |
 
 ---
 
@@ -400,14 +382,6 @@ inspireme 프론트엔드에서 ai-chatbot 백엔드를 직접 호출하면 CORS
 - **옵션 B**: inspireme 백엔드에서 프록시 (Next.js rewrites)
 - **권장**: 옵션 B — Next.js rewrites로 `/api/chatbot/*` → `ai-chatbot.advenoh.pe.kr/*` 프록시하면 CORS 이슈 없음
 
-### 10.6 인덱싱 시 DB 접속
-
-ai-chatbot 백엔드가 inspireme MySQL DB에 직접 접속해야 한다.
-
-- K8s 환경: 같은 클러스터 내 `mysql-headless.app.svc.cluster.local` 접속 가능
-- 로컬 개발: inspireme의 Docker MySQL 컨테이너에 접속 (포트 포워딩)
-- **보안**: 읽기 전용 DB 계정 사용 권장
-
 ---
 
 ## 11. 테스트
@@ -415,9 +389,9 @@ ai-chatbot 백엔드가 inspireme MySQL DB에 직접 접속해야 한다.
 ### 11.1 Backend 테스트
 
 **`tests/test_inspireme_loader.py`**:
-- DB → Document 변환 정확성 (명언 내용, 저자 정보, 메타데이터)
-- 다국어 번역 포함 여부
-- 빈 번역 처리 (fallback)
+- API 응답 → Document 변환 정확성 (명언 내용, 저자 정보, 메타데이터)
+- 다국어 번역 포함 여부 (ko/en 병합)
+- 빈 번역/authorInfo 없는 경우 fallback
 - URL 생성 정확성
 
 **`tests/test_api.py`** (확장):
