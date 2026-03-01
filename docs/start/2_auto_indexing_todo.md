@@ -4,10 +4,10 @@
 
 ### routes.py 수정
 
-- [ ] `app/api/routes.py` — `/index/{blog_id}` 엔드포인트 git clone 방식으로 변경
+- [ ] `app/api/routes.py` — `/index/{blog_id}` 엔드포인트 git clone 방식으로 통일
   - [ ] `BLOG_REPOS` dict 추가 (blog-v2, investment GitHub URL)
-  - [ ] `LOCAL_CONTENTS_DIRS` dict 추가 (기존 상대 경로)
-  - [ ] 로컬 경로 존재 시 직접 사용, 없으면 `git clone --depth 1` fallback
+  - [ ] 기존 `LOCAL_CONTENTS_DIRS` 상대 경로 하드코딩 제거
+  - [ ] 항상 `git clone --depth 1`로 shallow clone 후 인덱싱
   - [ ] `tempfile.mkdtemp()`로 임시 디렉토리 생성
   - [ ] `finally`에서 `shutil.rmtree()` 정리
 
@@ -25,8 +25,7 @@
 
 ### 테스트
 
-- [ ] 로컬 환경: `contents/` 디렉토리 있을 때 기존 방식으로 정상 동작 확인
-- [ ] 로컬 환경: `contents/` 디렉토리 없을 때 git clone 방식 동작 확인
+- [ ] 로컬 환경: git clone 방식으로 정상 인덱싱 동작 확인
 - [ ] Docker 빌드 후 컨테이너 내에서 git 명령어 사용 가능 확인
 
 ### 빌드 & 푸시

@@ -8,7 +8,7 @@
 ai-chatbot.advenoh.pe.kr/backend/
 ├── app/
 │   └── api/
-│       └── routes.py              # /index/{blog_id} — git clone 방식으로 변경
+│       └── routes.py              # /index/{blog_id} — git clone 방식으로 통일
 ├── scripts/
 │   └── cron_reindex.sh            # 신규: 수동 테스트용 인덱싱 스크립트
 └── Dockerfile                     # git 패키지 설치 추가
@@ -36,22 +36,16 @@ charts/
 
 ### 2.1 `/index/{blog_id}` API 개선 (`app/api/routes.py`)
 
-현재 상대 경로 하드코딩(`../../blog-v2.advenoh.pe.kr/contents/`)을 git clone 방식으로 변경한다. 로컬 경로가 있으면 그대로 사용하고, 없으면 git clone으로 fallback한다.
+현재 상대 경로 하드코딩(`../../blog-v2.advenoh.pe.kr/contents/`)을 **git clone 방식으로 통일**한다. 로컬/K8s 환경 구분 없이 항상 git clone으로 소스를 가져온다.
 
 ```python
 import shutil
 import subprocess
 import tempfile
-from pathlib import Path
 
 BLOG_REPOS = {
     "blog-v2": "https://github.com/kenshin579/blog-v2.advenoh.pe.kr.git",
     "investment": "https://github.com/kenshin579/investment.advenoh.pe.kr.git",
-}
-
-LOCAL_CONTENTS_DIRS = {
-    "blog-v2": "../../blog-v2.advenoh.pe.kr/contents/",
-    "investment": "../../investment.advenoh.pe.kr/contents/",
 }
 
 @router.post("/index/{blog_id}", response_model=IndexResponse)
@@ -65,26 +59,20 @@ async def reindex(
     if blog_id not in settings.blog_collections:
         raise HTTPException(status_code=400, detail=f"Unknown blog_id: {blog_id}")
 
+    if blog_id not in BLOG_REPOS:
+        raise HTTPException(status_code=400, detail=f"No repository for: {blog_id}")
+
     manager.delete_collection(blog_id)
 
-    clone_dir = None
+    clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
     try:
-        # 1. 소스 디렉토리 결정: 로컬 경로 → git clone fallback
-        local_dir = LOCAL_CONTENTS_DIRS.get(blog_id)
-        if local_dir and Path(local_dir).exists():
-            contents_dir = local_dir
-        elif blog_id in BLOG_REPOS:
-            clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
-            subprocess.run(
-                ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
-                check=True,
-                capture_output=True,
-            )
-            contents_dir = f"{clone_dir}/contents/"
-        else:
-            raise HTTPException(
-                status_code=400, detail=f"No contents source for: {blog_id}"
-            )
+        # 1. git clone으로 블로그 소스 가져오기
+        subprocess.run(
+            ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
+            check=True,
+            capture_output=True,
+        )
+        contents_dir = f"{clone_dir}/contents/"
 
         # 2. 인덱싱
         documents = load_blog_documents(contents_dir, blog_id)
@@ -92,15 +80,14 @@ async def reindex(
         indexed = manager.index_documents(blog_id, chunks)
     finally:
         # 3. 임시 디렉토리 정리
-        if clone_dir:
-            shutil.rmtree(clone_dir, ignore_errors=True)
+        shutil.rmtree(clone_dir, ignore_errors=True)
 
     return IndexResponse(status="ok", blog_id=blog_id, indexed_chunks=indexed)
 ```
 
 **핵심 변경사항**:
-- 로컬 `contents/` 디렉토리가 있으면 기존처럼 직접 사용 (개발 환경)
-- 없으면 `git clone --depth 1`로 shallow clone 후 인덱싱 (K8s 환경)
+- 로컬/K8s 환경 구분 없이 항상 `git clone --depth 1`로 shallow clone 후 인덱싱
+- 코드 경로가 하나이므로 유지보수 및 디버깅이 간단
 - `tempfile.mkdtemp()`로 임시 디렉토리 생성 → finally에서 정리
 
 ### 2.2 Dockerfile 수정
@@ -296,7 +283,7 @@ spec:
 ### 4.1 Backend 테스트
 
 - `/index/blog-v2` API 호출 → git clone 방식으로 정상 인덱싱 확인
-- 로컬 `contents/` 디렉토리가 있을 때 git clone 없이 직접 사용 확인
+- `/index/investment` API 호출 → git clone 방식으로 정상 인덱싱 확인
 - 잘못된 blog_id → 400 에러 반환 확인
 
 ### 4.2 Helm 차트 검증
