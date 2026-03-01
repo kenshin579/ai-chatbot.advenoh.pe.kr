@@ -39,28 +39,28 @@
 
 ### Helm 차트 파일
 
-- [ ] `charts/cronjob/ai-chatbot-reindex/Chart.yaml` — 차트 메타데이터
-- [ ] `charts/cronjob/ai-chatbot-reindex/values.yaml` — CronJob 설정
-  - [ ] `schedule: "0 18 * * 0"` (매주 일요일 03:00 KST)
-  - [ ] `image: curlimages/curl:8.5.0`
-  - [ ] `config.apiUrl`: K8s 내부 서비스 URL
-  - [ ] `config.blogIds`: `blog-v2,investment`
-  - [ ] `secrets.ragIndexToken`: 인덱싱 API 토큰
-- [ ] `charts/cronjob/ai-chatbot-reindex/templates/secret.yaml` — RAG_INDEX_TOKEN Secret
-- [ ] `charts/cronjob/ai-chatbot-reindex/templates/cronjob.yaml` — CronJob 리소스
-  - [ ] blog ID 순차 순회 + curl API 호출
-  - [ ] HTTP 상태 코드 검증 (200 아니면 exit 1)
-  - [ ] `concurrencyPolicy: Forbid`
-  - [ ] `activeDeadlineSeconds: 1800`
+- [x] `charts/cronjob/ai-chatbot-reindex/Chart.yaml` — 차트 메타데이터
+- [x] `charts/cronjob/ai-chatbot-reindex/values.yaml` — CronJob 설정
+  - [x] `schedule: "0 18 * * 0"` (매주 일요일 03:00 KST)
+  - [x] `image: curlimages/curl:8.5.0`
+  - [x] `config.apiUrl`: K8s 내부 서비스 URL
+  - [x] `config.blogIds`: `blog-v2,investment`
+  - [x] `secrets.ragIndexToken`: 인덱싱 API 토큰
+- [x] `charts/cronjob/ai-chatbot-reindex/templates/secret.yaml` — RAG_INDEX_TOKEN Secret
+- [x] `charts/cronjob/ai-chatbot-reindex/templates/cronjob.yaml` — CronJob 리소스
+  - [x] blog ID 순차 순회 + curl API 호출
+  - [x] HTTP 상태 코드 검증 (200 아니면 exit 1)
+  - [x] `concurrencyPolicy: Forbid`
+  - [x] `activeDeadlineSeconds: 1800`
 
 ### Helm 검증
 
-- [ ] `helm template . --debug` — YAML 생성 확인
-- [ ] `helm lint .` — 차트 유효성 검증
+- [x] `helm template . --debug` — YAML 생성 확인
+- [x] `helm lint .` — 차트 유효성 검증
 
 ### ArgoCD 등록
 
-- [ ] `bootstrap/macmini-app.yaml` — `ai-chatbot-reindex` 엔트리 추가
+- [x] `bootstrap/macmini-app.yaml` — `ai-chatbot-reindex` 엔트리 추가
 
 ---
 
