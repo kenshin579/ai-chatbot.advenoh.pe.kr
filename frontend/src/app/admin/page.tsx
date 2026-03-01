@@ -4,6 +4,8 @@ import { StatsCard } from "@/components/admin/StatsCard";
 import { TopQuestions } from "@/components/admin/TopQuestions";
 import { getAdminStats } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
   let stats;
   try {
