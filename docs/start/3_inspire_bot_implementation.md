@@ -9,15 +9,15 @@ backend/
 ├── app/
 │   ├── api/
 │   │   └── routes.py              # /index/{blog_id} 분기 추가 (inspireme)
-│   ├── config.py                  # inspireme DB 설정 + blog_collections 추가
+│   ├── config.py                  # inspireme API URL + blog_collections 추가
 │   ├── prompts/
 │   │   └── templates.py           # INSPIREME_SYSTEM_PROMPT 추가
 │   └── rag/
 │       ├── chain.py               # blog_id별 프롬프트 분기
-│       └── inspireme_loader.py    # 신규: MySQL DB → Document 변환
+│       └── inspireme_loader.py    # 신규: inspireme API → Document 변환
 ├── scripts/
 │   └── index_documents.py         # --blog-id inspireme 지원 추가
-└── pyproject.toml                 # aiomysql 의존성 (이미 존재)
+└── pyproject.toml                 # httpx 의존성 추가
 ```
 
 ### 1.2 inspireme Frontend 신규/수정 파일
@@ -42,8 +42,8 @@ inspireme.advenoh.pe.kr/frontend/
 ```
 charts/charts/
 ├── ai-chatbot-be/
-│   ├── values.yaml                    # inspireme MySQL 환경변수 추가
-│   └── templates/configmap.yaml       # INSPIREME_MYSQL_* 환경변수 추가
+│   ├── values.yaml                    # INSPIREME_API_URL 환경변수 추가
+│   └── templates/configmap.yaml       # INSPIREME_API_URL 환경변수 추가
 └── gateway/values.yaml                # inspireme → ai-chatbot CORS 또는 라우트
 ```
 
@@ -64,92 +64,61 @@ class Settings(BaseSettings):
         "inspireme": "명언",
     }
 
-    # inspireme DB 접속 정보 (인덱싱 시 사용)
-    inspireme_mysql_host: str = "localhost"
-    inspireme_mysql_port: int = 3306
-    inspireme_mysql_database: str = "inspireme"
-    inspireme_mysql_user: str = "inspireme"
-    inspireme_mysql_password: str = ""
-
-    @property
-    def inspireme_database_url(self) -> str:
-        return (
-            f"mysql+aiomysql://{self.inspireme_mysql_user}:{quote_plus(self.inspireme_mysql_password)}"
-            f"@{self.inspireme_mysql_host}:{self.inspireme_mysql_port}/{self.inspireme_mysql_database}"
-        )
+    # inspireme API URL (인덱싱 시 사용)
+    inspireme_api_url: str = "http://localhost:8080"
 ```
 
 ### 2.2 Document Loader 신규 (`app/rag/inspireme_loader.py`)
 
+inspireme 백엔드 API를 호출하여 데이터를 가져온다. DB에 직접 접속하지 않으므로 스키마 변경에 영향받지 않는다.
+
 ```python
 import logging
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+import httpx
 from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
 
-QUOTES_QUERY = """
-SELECT q.id, q.author, q.author_id, q.topics, q.tags,
-       a.slug AS author_slug, a.birth_year, a.death_year, a.nationality,
-       qt_ko.content AS content_ko, qt_en.content AS content_en,
-       at_ko.name AS author_name_ko, at_en.name AS author_name_en,
-       at_ko.bio AS author_bio_ko
-FROM quotes q
-LEFT JOIN authors a ON q.author_id = a.id
-LEFT JOIN quote_translations qt_ko ON q.id = qt_ko.quote_id AND qt_ko.lang = 'ko'
-LEFT JOIN quote_translations qt_en ON q.id = qt_en.quote_id AND qt_en.lang = 'en'
-LEFT JOIN author_translations at_ko ON a.id = at_ko.author_id AND at_ko.lang = 'ko'
-LEFT JOIN author_translations at_en ON a.id = at_en.author_id AND at_en.lang = 'en'
-"""
-
-AUTHORS_QUERY = """
-SELECT a.id, a.slug, a.birth_year, a.death_year, a.nationality,
-       at_ko.name AS name_ko, at_ko.bio AS bio_ko,
-       at_en.name AS name_en, at_en.bio AS bio_en
-FROM authors a
-LEFT JOIN author_translations at_ko ON a.id = at_ko.author_id AND at_ko.lang = 'ko'
-LEFT JOIN author_translations at_en ON a.id = at_en.author_id AND at_en.lang = 'en'
-"""
-
-BASE_URL = "https://inspireme.advenoh.pe.kr"
+INSPIREME_URL = "https://inspireme.advenoh.pe.kr"
 
 
-def _build_quote_document(row: dict) -> Document:
-    """명언 DB 레코드를 LangChain Document로 변환한다."""
+def _build_quote_document(quote: dict) -> Document:
+    """명언 API 응답을 LangChain Document로 변환한다."""
     content_parts = []
-    if row.get("content_ko"):
-        content_parts.append(f'"{row["content_ko"]}"')
-    if row.get("content_en"):
-        content_parts.append(f'"{row["content_en"]}"')
 
-    author_name = row.get("author_name_ko") or row.get("author") or "Unknown"
-    author_name_en = row.get("author_name_en") or ""
-    if author_name_en:
-        content_parts.append(f"— {author_name} ({author_name_en})")
-    else:
-        content_parts.append(f"— {author_name}")
+    # 원문 + 번역
+    if quote.get("content"):
+        content_parts.append(f'"{quote["content"]}"')
+    for t in quote.get("translations", []):
+        if t.get("content"):
+            content_parts.append(f'"{t["content"]}"')
 
-    topics = row.get("topics") or []
-    tags = row.get("tags") or []
+    # 저자
+    author_name = quote.get("author", "Unknown")
+    author_info = quote.get("authorInfo") or {}
+    content_parts.append(f"— {author_name}")
+
+    # 주제/태그
+    topics = quote.get("topics") or []
+    tags = quote.get("tags") or []
     if topics:
         content_parts.append(f"주제: {', '.join(topics)}")
     if tags:
         content_parts.append(f"태그: {', '.join(tags)}")
-    if row.get("author_bio_ko"):
-        content_parts.append(f"저자 소개: {row['author_bio_ko']}")
+    if author_info.get("bio"):
+        content_parts.append(f"저자 소개: {author_info['bio']}")
 
     page_content = "\n".join(content_parts)
 
     metadata = {
         "blog_id": "inspireme",
         "type": "quote",
-        "quote_id": row["id"],
+        "quote_id": quote["id"],
         "author": author_name,
-        "url": f"{BASE_URL}/quotes/{row['id']}",
+        "url": f"{INSPIREME_URL}/quotes/{quote['id']}",
     }
-    if row.get("author_slug"):
-        metadata["author_slug"] = row["author_slug"]
+    if author_info.get("slug"):
+        metadata["author_slug"] = author_info["slug"]
     if topics:
         metadata["topics"] = topics
     if tags:
@@ -158,10 +127,10 @@ def _build_quote_document(row: dict) -> Document:
     return Document(page_content=page_content, metadata=metadata)
 
 
-def _build_author_document(row: dict) -> Document:
-    """저자 DB 레코드를 LangChain Document로 변환한다."""
-    name_ko = row.get("name_ko") or "Unknown"
-    name_en = row.get("name_en") or ""
+def _build_author_document(author_ko: dict, author_en: dict | None = None) -> Document:
+    """저자 API 응답(ko/en)을 LangChain Document로 변환한다."""
+    name_ko = author_ko.get("name", "Unknown")
+    name_en = author_en.get("name", "") if author_en else ""
 
     content_parts = []
     if name_en:
@@ -169,64 +138,108 @@ def _build_author_document(row: dict) -> Document:
     else:
         content_parts.append(name_ko)
 
-    if row.get("nationality"):
-        content_parts.append(f"국적: {row['nationality']}")
-    if row.get("birth_year"):
-        birth = f"출생: {row['birth_year']}"
-        if row.get("death_year"):
-            birth += f", 사망: {row['death_year']}"
+    if author_ko.get("nationality"):
+        content_parts.append(f"국적: {author_ko['nationality']}")
+    if author_ko.get("birthYear"):
+        birth = f"출생: {author_ko['birthYear']}"
+        if author_ko.get("deathYear"):
+            birth += f", 사망: {author_ko['deathYear']}"
         content_parts.append(birth)
-    if row.get("bio_ko"):
-        content_parts.append(f"소개: {row['bio_ko']}")
-    if row.get("bio_en"):
-        content_parts.append(f"Bio: {row['bio_en']}")
+    if author_ko.get("bio"):
+        content_parts.append(f"소개: {author_ko['bio']}")
+    if author_en and author_en.get("bio"):
+        content_parts.append(f"Bio: {author_en['bio']}")
 
     page_content = "\n".join(content_parts)
 
+    slug = author_ko.get("slug", "")
     metadata = {
         "blog_id": "inspireme",
         "type": "author",
-        "author_id": row["id"],
-        "author_slug": row.get("slug", ""),
-        "url": f"{BASE_URL}/authors/{row.get('slug', '')}",
+        "author_id": author_ko["id"],
+        "author_slug": slug,
+        "url": f"{INSPIREME_URL}/authors/{slug}",
     }
 
     return Document(page_content=page_content, metadata=metadata)
 
 
-async def load_inspireme_documents(database_url: str) -> list[Document]:
-    """inspireme MySQL DB에서 명언/저자 데이터를 로드하여 Document 리스트로 반환한다."""
-    engine = create_async_engine(database_url, pool_pre_ping=True)
+PAGE_SIZE = 1000
 
+
+async def _fetch_all_quotes(client: httpx.AsyncClient) -> list[dict]:
+    """명언 목록을 페이지네이션하여 전체 로드한다. (total 없으므로 결과 < limit이면 종료)"""
+    all_quotes = []
+    offset = 0
+    while True:
+        resp = await client.get("/api/quotes", params={"limit": PAGE_SIZE, "offset": offset})
+        resp.raise_for_status()
+        quotes = resp.json()
+        all_quotes.extend(quotes)
+        if len(quotes) < PAGE_SIZE:
+            break
+        offset += PAGE_SIZE
+    return all_quotes
+
+
+async def _fetch_all_authors(client: httpx.AsyncClient, lang: str) -> dict[str, dict]:
+    """저자 목록을 페이지네이션하여 전체 로드한다. {id: author_dict} 반환."""
+    authors = {}
+    offset = 0
+    while True:
+        resp = await client.get("/api/authors", params={"lang": lang, "limit": PAGE_SIZE, "offset": offset})
+        resp.raise_for_status()
+        data = resp.json()
+        for a in data.get("authors", []):
+            authors[a["id"]] = a
+        if offset + PAGE_SIZE >= data.get("total", 0):
+            break
+        offset += PAGE_SIZE
+    return authors
+
+
+async def load_inspireme_documents(api_url: str) -> list[Document]:
+    """inspireme API에서 명언/저자 데이터를 로드하여 Document 리스트로 반환한다."""
     documents = []
-    try:
-        async with engine.connect() as conn:
-            # 명언 로드
-            result = await conn.execute(text(QUOTES_QUERY))
-            rows = result.mappings().all()
-            for row in rows:
-                documents.append(_build_quote_document(dict(row)))
-            logger.info(f"명언 {len(rows)}개 로드 완료")
 
-            # 저자 로드
-            result = await conn.execute(text(AUTHORS_QUERY))
-            rows = result.mappings().all()
-            for row in rows:
-                documents.append(_build_author_document(dict(row)))
-            logger.info(f"저자 {len(rows)}명 로드 완료")
-    finally:
-        await engine.dispose()
+    async with httpx.AsyncClient(base_url=api_url, timeout=60.0) as client:
+        # 명언 로드 (페이지네이션)
+        quotes = await _fetch_all_quotes(client)
+        for quote in quotes:
+            documents.append(_build_quote_document(quote))
+        logger.info(f"명언 {len(quotes)}개 로드 완료")
+
+        # 저자 로드 (ko + en 병합, 페이지네이션)
+        authors_ko = await _fetch_all_authors(client, "ko")
+        authors_en = await _fetch_all_authors(client, "en")
+
+        for author_id, author_ko in authors_ko.items():
+            author_en = authors_en.get(author_id)
+            documents.append(_build_author_document(author_ko, author_en))
+        logger.info(f"저자 {len(authors_ko)}명 로드 완료")
 
     logger.info(f"총 {len(documents)}개 Document 생성")
     return documents
 ```
 
+**핵심 설계**:
+- **DB 직접 접속 없음**: inspireme 백엔드 API(`GET /api/quotes`, `GET /api/authors`)를 HTTP로 호출
+- **스키마 변경 격리**: DB 필드가 변경되어도 API 응답 구조만 유지되면 ai-chatbot 수정 불필요
+- **대량 데이터 처리**: 명언/저자 모두 `PAGE_SIZE=1000` 단위 페이지네이션으로 전체 로드
+- **다국어 처리**: 명언은 `translations` 배열로 한 번에 조회, 저자는 `lang=ko`/`lang=en` 두 번 호출 후 병합
+
 ### 2.3 인덱싱 엔드포인트 수정 (`app/api/routes.py`)
 
-기존 `reindex` 함수의 contents_dirs 분기 로직에 inspireme 처리를 추가한다.
+기존 `reindex` 함수에 inspireme 분기를 추가한다. blog-v2/investment는 자동 인덱싱(#2)에서 git clone 방식으로 변경되었으므로, inspireme은 그 앞에 API 호출 분기를 추가한다.
 
 ```python
 from app.rag.inspireme_loader import load_inspireme_documents
+
+# 기존 BLOG_REPOS (자동 인덱싱에서 추가됨)
+BLOG_REPOS = {
+    "blog-v2": "https://github.com/kenshin579/blog-v2.advenoh.pe.kr.git",
+    "investment": "https://github.com/kenshin579/investment.advenoh.pe.kr.git",
+}
 
 @router.post("/index/{blog_id}", response_model=IndexResponse)
 async def reindex(
@@ -241,21 +254,26 @@ async def reindex(
     manager.delete_collection(blog_id)
 
     if blog_id == "inspireme":
-        # DB에서 직접 로드 (청킹 불필요)
-        documents = await load_inspireme_documents(settings.inspireme_database_url)
+        # inspireme API에서 로드 (청킹 불필요)
+        documents = await load_inspireme_documents(settings.inspireme_api_url)
         indexed = manager.index_documents(blog_id, documents)
+    elif blog_id in BLOG_REPOS:
+        # git clone 방식으로 Markdown 파일 로드 + 청킹
+        clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
+        try:
+            subprocess.run(
+                ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
+                check=True,
+                capture_output=True,
+            )
+            contents_dir = f"{clone_dir}/contents/"
+            documents = load_blog_documents(contents_dir, blog_id)
+            chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
+            indexed = manager.index_documents(blog_id, chunks)
+        finally:
+            shutil.rmtree(clone_dir, ignore_errors=True)
     else:
-        # 기존: Markdown 파일 로드 + 청킹
-        contents_dirs = {
-            "blog-v2": "../../blog-v2.advenoh.pe.kr/contents/",
-            "investment": "../../investment.advenoh.pe.kr/contents/",
-        }
-        contents_dir = contents_dirs.get(blog_id)
-        if not contents_dir:
-            raise HTTPException(status_code=400, detail=f"No contents directory for: {blog_id}")
-        documents = load_blog_documents(contents_dir, blog_id)
-        chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
-        indexed = manager.index_documents(blog_id, chunks)
+        raise HTTPException(status_code=400, detail=f"No repository for: {blog_id}")
 
     return IndexResponse(status="ok", blog_id=blog_id, indexed_chunks=indexed)
 ```
@@ -466,26 +484,14 @@ import { ChatbotButton } from "@/components/chatbot/ChatbotButton";
 ```yaml
 config:
   # 기존 설정...
-  inspiremeMysqlHost: "mysql-headless.app.svc.cluster.local"
-  inspiremeMysqlPort: "3306"
-  inspiremeMysqlDatabase: "inspireme"
-
-secrets:
-  # 기존 설정...
-  inspiremeMysql:
-    user: "inspireme"
-    password: "<비밀번호>"
+  inspiremeApiUrl: "http://inspireme-be-service.app.svc.cluster.local"
 ```
 
 ### 4.2 ConfigMap 환경변수 추가 (`charts/ai-chatbot-be/templates/configmap.yaml`)
 
-- `INSPIREME_MYSQL_HOST`, `INSPIREME_MYSQL_PORT`, `INSPIREME_MYSQL_DATABASE`
+- `INSPIREME_API_URL`
 
-### 4.3 Secret 환경변수 추가 (`charts/ai-chatbot-be/templates/secret.yaml`)
-
-- `INSPIREME_MYSQL_USER`, `INSPIREME_MYSQL_PASSWORD`
-
-### 4.4 inspireme-fe 환경변수 추가 (`charts/inspireme-fe/values.yaml`)
+### 4.3 inspireme-fe 환경변수 추가 (`charts/inspireme-fe/values.yaml`)
 
 ```yaml
 config:
@@ -498,9 +504,10 @@ config:
 
 ### 5.1 Backend 단위 테스트
 
-- `test_inspireme_loader.py`: _build_quote_document, _build_author_document 변환 정확성
-- `test_inspireme_loader.py`: 다국어 번역 포함 여부 + 빈 번역 fallback
-- `test_api.py`: POST /index/inspireme 정상 동작
+- `test_inspireme_loader.py`: _build_quote_document — API 응답 → Document 변환 정확성
+- `test_inspireme_loader.py`: _build_author_document — ko/en 병합 변환 정확성
+- `test_inspireme_loader.py`: 빈 번역/authorInfo 없는 경우 fallback
+- `test_api.py`: POST /index/inspireme 정상 동작 (mock httpx)
 - `test_api.py`: POST /chat { blog_id: "inspireme" } 정상 응답
 
 ### 5.2 E2E 테스트 (MCP Playwright)
