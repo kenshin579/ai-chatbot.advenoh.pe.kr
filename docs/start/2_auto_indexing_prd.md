@@ -59,17 +59,17 @@ contents_dirs = {
 
 K8s 배포 환경에서는 이 경로에 블로그 소스가 존재하지 않으므로, `/index/{blog_id}` API는 **로컬 개발 환경에서만 동작**한다.
 
-### 4.2 해결 방안: Git Clone Fallback
+### 4.2 해결 방안: Git Clone 방식으로 통일
 
-- 로컬 경로가 존재하면 기존처럼 직접 사용 (개발 환경 호환)
-- 없으면 `git clone --depth 1`로 shallow clone 후 인덱싱 (K8s 환경)
+- 로컬/K8s 환경 구분 없이 항상 `git clone --depth 1`로 shallow clone 후 인덱싱
+- 코드 경로가 하나이므로 유지보수 및 디버깅이 간단
 - Dockerfile에 git 패키지 설치 필요
 
 ## 5. 구현 범위
 
 | 영역 | 작업 |
 |------|------|
-| ai-chatbot Backend | `/index/{blog_id}` API git clone fallback 추가, Dockerfile git 설치 |
+| ai-chatbot Backend | `/index/{blog_id}` API git clone 방식으로 변경, Dockerfile git 설치 |
 | Charts (신규) | `charts/cronjob/ai-chatbot-reindex/` Helm 차트 생성 |
 | ArgoCD | `bootstrap/macmini-app.yaml`에 CronJob 엔트리 등록 |
 
