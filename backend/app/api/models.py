@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     blog_id: str
     question: str
     chat_history: list[ChatMessage] | None = None
+    language: str | None = None
 
 
 class Source(BaseModel):

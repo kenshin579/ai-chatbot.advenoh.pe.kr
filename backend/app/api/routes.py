@@ -76,7 +76,7 @@ async def chat(
     message_id = str(uuid.uuid4())
 
     store = manager.get_store(request.blog_id)
-    chain = create_rag_chain(store, settings.openai_model, settings.top_k, blog_id=request.blog_id)
+    chain = create_rag_chain(store, settings.openai_model, settings.top_k, blog_id=request.blog_id, language=request.language)
 
     # chat_history를 LangChain 메시지 형식으로 변환
     chat_history = []
