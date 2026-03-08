@@ -62,7 +62,7 @@ export function ChatWindow() {
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
-      <MessageList messages={messages} isLoading={isLoading} blogId={blogId} />
+      <MessageList messages={messages} isLoading={isLoading} blogId={blogId} onSampleClick={handleSend} />
 
       {/* Error */}
       {error && (

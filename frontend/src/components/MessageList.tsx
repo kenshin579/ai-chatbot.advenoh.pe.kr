@@ -1,8 +1,10 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SAMPLE_QUESTIONS } from "@/constants/sampleQuestions";
 import type { ChatMessage, Source } from "@/lib/api";
 import { sendFeedback } from "@/lib/api";
+import { MessageSquare } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface DisplayMessage extends ChatMessage {
@@ -15,11 +17,12 @@ interface MessageListProps {
   messages: DisplayMessage[];
   isLoading?: boolean;
   blogId: string;
+  onSampleClick?: (question: string) => void;
 }
 
 type FeedbackState = "idle" | "sending" | "done";
 
-export function MessageList({ messages, isLoading, blogId }: MessageListProps) {
+export function MessageList({ messages, isLoading, blogId, onSampleClick }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [feedbackMap, setFeedbackMap] = useState<
     Record<string, { state: FeedbackState; rating?: "up" | "down" }>
@@ -53,9 +56,25 @@ export function MessageList({ messages, isLoading, blogId }: MessageListProps) {
   };
 
   if (messages.length === 0 && !isLoading) {
+    const questions = SAMPLE_QUESTIONS[blogId] ?? SAMPLE_QUESTIONS["blog-v2"];
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        <p>블로그에 대해 질문해 보세요!</p>
+      <div className="flex-1 flex flex-col items-center justify-center px-4">
+        <div className="mb-8 text-center">
+          <MessageSquare className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground">블로그에 대해 질문해 보세요</p>
+        </div>
+        <div className="w-full max-w-lg space-y-3">
+          <p className="text-sm font-medium text-muted-foreground">예시 질문</p>
+          {questions.map((q, i) => (
+            <button
+              key={i}
+              onClick={() => onSampleClick?.(q)}
+              className="w-full text-left rounded-lg border bg-card p-3 text-sm hover:bg-accent transition-colors"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
