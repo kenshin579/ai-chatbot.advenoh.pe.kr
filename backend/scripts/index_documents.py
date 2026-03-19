@@ -6,6 +6,7 @@
 """
 
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
@@ -18,10 +19,13 @@ if 'AI_CHATBOT_OPEN_API_KEY' in os.environ:
     os.environ['OPENAI_API_KEY'] = os.environ['AI_CHATBOT_OPEN_API_KEY']
 
 from app.config import get_settings
+from app.core.logging import init_logger
 from app.rag.chunker import split_documents
 from app.rag.document_loader import load_blog_documents
 from app.rag.embedder import create_embeddings
 from app.rag.vector_store import VectorStoreManager
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -44,27 +48,28 @@ def main():
     )
     args = parser.parse_args()
 
+    init_logger()
     settings = get_settings()
 
-    print(f"[1/4] 문서 로딩: {args.contents_dir}")
+    logger.info("[1/4] 문서 로딩", extra={"contents_dir": args.contents_dir})
     documents = load_blog_documents(args.contents_dir, args.blog_id)
-    print(f"  -> {len(documents)}개 문서 로드 완료")
+    logger.info("문서 로드 완료", extra={"count": len(documents)})
 
-    print(f"[2/4] 청킹 (chunk_size={settings.chunk_size}, overlap={settings.chunk_overlap})")
+    logger.info("[2/4] 청킹", extra={"chunk_size": settings.chunk_size, "overlap": settings.chunk_overlap})
     chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
-    print(f"  -> {len(chunks)}개 청크 생성")
+    logger.info("청크 생성 완료", extra={"count": len(chunks)})
 
-    print(f"[3/4] 벡터 저장소 연결: {settings.chroma_host}:{settings.chroma_port}")
+    logger.info("[3/4] 벡터 저장소 연결", extra={"host": settings.chroma_host, "port": settings.chroma_port})
     embeddings = create_embeddings(settings.embedding_model)
     manager = VectorStoreManager(settings.chroma_host, settings.chroma_port, embeddings)
 
     if args.reindex:
-        print(f"  -> 기존 '{args.blog_id}' Collection 삭제")
+        logger.info("기존 Collection 삭제", extra={"blog_id": args.blog_id})
         manager.delete_collection(args.blog_id)
 
-    print(f"[4/4] '{args.blog_id}' Collection에 인덱싱 중...")
+    logger.info("[4/4] 인덱싱 시작", extra={"blog_id": args.blog_id})
     indexed = manager.index_documents(args.blog_id, chunks)
-    print(f"  -> {indexed}개 청크 인덱싱 완료!")
+    logger.info("인덱싱 완료", extra={"blog_id": args.blog_id, "indexed_chunks": indexed})
 
 
 if __name__ == "__main__":

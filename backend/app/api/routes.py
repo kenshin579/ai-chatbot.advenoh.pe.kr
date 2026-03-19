@@ -119,7 +119,10 @@ async def chat(
                     has_results=len(sources) > 0,
                 )
         except Exception:
-            logger.exception("쿼리 로그 저장 실패")
+            logger.exception("쿼리 로그 저장 실패", extra={
+                "blog_id": request.blog_id,
+                "question": request.question[:100],
+            })
 
     return ChatResponse(
         answer=result["answer"],
@@ -187,7 +190,9 @@ async def feedback(
                     rating=request.rating,
                 )
         except Exception:
-            logger.exception("피드백 저장 실패")
+            logger.exception("피드백 저장 실패", extra={
+                "blog_id": request.blog_id,
+            })
 
     # LangSmith 피드백 전송 (API key가 설정된 경우)
     if settings.langsmith_api_key:
@@ -201,7 +206,9 @@ async def feedback(
                 comment=request.question,
             )
         except Exception:
-            logger.exception("LangSmith 피드백 전송 실패")
+            logger.exception("LangSmith 피드백 전송 실패", extra={
+                "run_id": request.message_id,
+            })
 
     return FeedbackResponse(status="ok")
 

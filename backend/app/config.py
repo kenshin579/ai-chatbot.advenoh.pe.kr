@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # LangSmith
     langsmith_api_key: str = ""
 
+    # Logging
+    log_level: str = "INFO"
+
     # MySQL
     mysql_host: str = "localhost"
     mysql_port: int = 3306

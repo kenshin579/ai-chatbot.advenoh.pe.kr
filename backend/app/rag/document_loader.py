@@ -1,8 +1,11 @@
+import logging
 import re
 from pathlib import Path
 
 import yaml
 from langchain_core.documents import Document
+
+logger = logging.getLogger(__name__)
 
 
 def parse_frontmatter(content: str) -> tuple[dict, str]:
@@ -52,7 +55,7 @@ def load_blog_documents(contents_dir: str, blog_id: str) -> list[Document]:
             content = md_file.read_text(encoding="utf-8")
             metadata, body = parse_frontmatter(content)
         except Exception as e:
-            print(f"Warning: Failed to load {md_file}: {e}")
+            logger.warning("문서 로드 실패", extra={"file": str(md_file), "error": str(e)})
             continue
 
         # contents/ 기준 상대 경로

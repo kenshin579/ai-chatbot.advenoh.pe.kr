@@ -1,7 +1,11 @@
+import logging
+
 import chromadb
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
+
+logger = logging.getLogger(__name__)
 
 
 class VectorStoreManager:
@@ -39,7 +43,7 @@ class VectorStoreManager:
         try:
             self.client.delete_collection(name=blog_id)
         except Exception:
-            pass  # Collection이 없으면 무시
+            logger.debug("Collection 삭제 스킵 (존재하지 않음)", extra={"blog_id": blog_id})
 
     def list_collections(self) -> list[str]:
         """사용 가능한 Collection 목록을 반환한다."""

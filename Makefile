@@ -31,10 +31,10 @@ run-fe:
 	@cd frontend && npm run dev
 
 run-be:
-	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080 --no-access-log
 
 run-all:
-	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080 & cd frontend && npm run dev
+	@cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080 --no-access-log & cd frontend && npm run dev
 
 # ========================================
 # 개발 도구
