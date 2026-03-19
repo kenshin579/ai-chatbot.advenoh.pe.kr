@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.config import get_settings
+from app.core.logging import init_logger
 from app.db.connection import close_db, init_db
+from app.middleware.request_logging import RequestLoggingMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    init_logger(settings.log_level)
+    logger.info("Application starting")
+
     if settings.mysql_password:
         await init_db(settings.database_url)
         logger.info("MySQL 연결 완료")
@@ -30,6 +35,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
