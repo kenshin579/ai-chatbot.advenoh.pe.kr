@@ -8,6 +8,7 @@ from app.api.routes import router
 from app.config import get_settings
 from app.core.logging import init_logger
 from app.db.connection import close_db, init_db
+from app.metrics import METRICS_PATH, metrics_endpoint
 from app.middleware.request_logging import RequestLoggingMiddleware
 
 logger = logging.getLogger(__name__)
@@ -45,3 +46,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+# /metrics 는 라우터가 아니라 앱에 직접 등록한다.
+# include_in_schema=False 로 OpenAPI 문서에서 제외한다.
+app.add_api_route(METRICS_PATH, metrics_endpoint, include_in_schema=False)

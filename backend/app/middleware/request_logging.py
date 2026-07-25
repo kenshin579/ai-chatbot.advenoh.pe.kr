@@ -4,14 +4,41 @@ import time
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app.metrics import METRICS_PATH, request_duration, requests_total
+
 logger = logging.getLogger(__name__)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # /metrics 자기 자신은 계측도 로깅도 하지 않는다.
+        # 스크레이프마다 카운터가 늘어나면 요청량 그래프가 실제 트래픽이 아니라
+        # 스크레이프 주기를 그리게 된다.
+        if request.url.path == METRICS_PATH:
+            return await call_next(request)
+
         start = time.time()
+        perf_start = time.perf_counter()
         response = await call_next(request)
         latency_ms = int((time.time() - start) * 1000)
+
+        # 라우트 패턴은 call_next 이후에만 읽을 수 있다. BaseHTTPMiddleware 는
+        # 라우팅 전에 실행되지만 scope 딕셔너리는 같은 객체가 그대로 전달돼
+        # 라우터가 제자리에서 채운다. 매칭되지 않은 요청(404)에는 route 가 없다.
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", None) or "unmatched"
+
+        # 실제 URL(request.url.path)을 쓰면 경로 파라미터마다 시계열이 생겨
+        # 카디널리티가 폭발한다. 반드시 라우트 패턴을 쓴다.
+        requests_total.labels(
+            method=request.method,
+            route=route_path,
+            status=str(response.status_code),
+        ).inc()
+        request_duration.labels(
+            method=request.method,
+            route=route_path,
+        ).observe(time.perf_counter() - perf_start)
 
         log_data = {
             "remoteIp": request.client.host if request.client else "",
