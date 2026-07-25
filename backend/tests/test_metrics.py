@@ -54,8 +54,27 @@ class TestMetricsEndpoint:
         assert 'route="/health"' in body
 
     def test_metrics_endpoint_does_not_record_itself(self, client):
-        # 스크레이프마다 카운터가 늘어나면 요청량 그래프가
-        # 실제 트래픽이 아니라 스크레이프 주기를 그리게 된다.
+        # 한 번만 긁으면 카운터 증가가 응답 생성 이후라 구조적으로 자기 자신을
+        # 볼 수 없어, 제외 로직을 지워도 이 테스트가 통과한다. 두 번 긁는다.
+        client.get("/metrics")
         body = client.get("/metrics").text
 
         assert 'route="/metrics"' not in body
+
+    def test_records_unhandled_exception_as_500(self, client):
+        # ExceptionMiddleware 는 이 미들웨어보다 안쪽이라 HTTPException 이 아닌
+        # 처리되지 않은 예외가 관통해 나간다. 감싸주지 않으면 실제 500 이
+        # 대시보드에서 사라진다.
+        from app.main import app as fastapi_app
+
+        @fastapi_app.get("/__metrics_boom", include_in_schema=False)
+        async def _boom():
+            raise RuntimeError("boom")
+
+        probe = TestClient(fastapi_app, raise_server_exceptions=False)
+        assert probe.get("/__metrics_boom").status_code == 500
+
+        body = probe.get("/metrics").text
+
+        assert 'route="/__metrics_boom"' in body
+        assert 'status="500"' in body

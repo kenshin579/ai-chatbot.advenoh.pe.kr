@@ -19,7 +19,42 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         start = time.time()
         perf_start = time.perf_counter()
-        response = await call_next(request)
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            # ExceptionMiddleware 는 이 미들웨어보다 안쪽(APIRouter 쪽)에 있어
+            # HTTPException 이 아닌 처리되지 않은 예외는 여기를 그대로 관통해
+            # ServerErrorMiddleware 까지 올라간다. 감싸지 않으면 500 이 집계도
+            # 로깅도 되지 않은 채 사라진다.
+            route = request.scope.get("route")
+            route_path = getattr(route, "path", None) or "unmatched"
+
+            requests_total.labels(
+                method=request.method,
+                route=route_path,
+                status="500",
+            ).inc()
+            request_duration.labels(
+                method=request.method,
+                route=route_path,
+            ).observe(time.perf_counter() - perf_start)
+
+            latency_ms = int((time.time() - start) * 1000)
+            log_data = {
+                "remoteIp": request.client.host if request.client else "",
+                "host": request.headers.get("host", ""),
+                "method": request.method,
+                "uri": str(request.url.path),
+                "status": 500,
+                "latency": latency_ms,
+                "latency_human": f"{latency_ms}ms",
+                "userAgent": request.headers.get("user-agent", ""),
+            }
+            msg = f"{request.method} {request.url.path}"
+            logger.error("[SERVER ERROR] %s", msg, extra=log_data)
+            raise
+
         latency_ms = int((time.time() - start) * 1000)
 
         # 라우트 패턴은 call_next 이후에만 읽을 수 있다. BaseHTTPMiddleware 는

@@ -14,9 +14,16 @@ from prometheus_client import (
     Counter,
     Gauge,
     Histogram,
+    disable_created_metrics,
     generate_latest,
 )
 from starlette.responses import Response
+
+# Counter/Histogram 이 기본으로 추가 노출하는 _created 게이지를 끈다. Go 서비스
+# 에는 대응하는 시계열이 없어 그대로 두면 두 지표 계열의 시계열 수만 두 배가 된다.
+# 컬렉터 정의 전에 호출해야 하는 것은 아니지만(수집 시점에 동적으로 참조됨),
+# 의도를 분명히 하기 위해 정의보다 먼저 둔다.
+disable_created_metrics()
 
 # 지표 노출 경로. Prometheus 의 kubernetes-pods job 에는 prometheus.io/path
 # 릴레이블이 없어 metrics_path 가 /metrics 로 고정이다. 바꾸면 수집이 조용히 멈춘다.
@@ -48,7 +55,7 @@ build_info = Gauge(
     ["version", "commit"],
 )
 
-# 빌드 시 Dockerfile 의 ARG -> ENV 로 주입된다.
+# C3 에서 Dockerfile 의 ARG -> ENV 로 주입할 예정이다. 그 전까지는 항상 기본값이며,
 # 주입이 누락되면 dev 로 남아 대시보드 Version 컬럼에서 즉시 드러난다.
 build_info.labels(
     version=os.getenv("APP_VERSION", "dev"),
