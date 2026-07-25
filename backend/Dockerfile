@@ -14,4 +14,8 @@ COPY liquibase/changelog.yaml /liquibase/changelog/changelog.yaml
 COPY liquibase/changes/ /liquibase/changelog/changes/
 COPY liquibase/lib/ /liquibase/lib/
 EXPOSE 8080
+ARG VERSION=dev
+ARG COMMIT=unknown
+ENV APP_VERSION=${VERSION} \
+    APP_COMMIT=${COMMIT}
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]
