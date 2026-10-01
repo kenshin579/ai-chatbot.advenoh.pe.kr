@@ -6,6 +6,7 @@ import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -144,32 +145,42 @@ async def reindex(
             status_code=400, detail=f"Unknown blog_id: {blog_id}"
         )
 
-    manager.delete_collection(blog_id)
-
-    if blog_id == "inspireme":
-        documents = await load_inspireme_documents(settings.inspireme_api_url)
-        indexed = manager.index_documents(blog_id, documents)
-    elif blog_id in BLOG_REPOS:
-        clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
-        try:
-            subprocess.run(
-                ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
-                check=True,
-                capture_output=True,
-            )
-            contents_dir = f"{clone_dir}/contents/"
-
-            documents = load_blog_documents(contents_dir, blog_id)
-            chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
-            indexed = manager.index_documents(blog_id, chunks)
-        finally:
-            shutil.rmtree(clone_dir, ignore_errors=True)
-    else:
+    if blog_id != "inspireme" and blog_id not in BLOG_REPOS:
         raise HTTPException(
             status_code=400, detail=f"No repository for: {blog_id}"
         )
 
+    # 컬렉션 삭제·git clone·임베딩 적재는 전부 동기 호출이라 수십 초~분 단위로 걸린다.
+    # 이벤트 루프에서 직접 돌리면 그동안 /health 도 응답하지 못해 liveness 에 재시작된다(#42).
+    await run_in_threadpool(manager.delete_collection, blog_id)
+
+    if blog_id == "inspireme":
+        documents = await load_inspireme_documents(settings.inspireme_api_url)
+        indexed = await run_in_threadpool(manager.index_documents, blog_id, documents)
+    else:
+        indexed = await run_in_threadpool(_index_blog_repo, blog_id, settings, manager)
+
     return IndexResponse(status="ok", blog_id=blog_id, indexed_chunks=indexed)
+
+
+def _index_blog_repo(
+    blog_id: str, settings: Settings, manager: VectorStoreManager
+) -> int:
+    """블로그 저장소를 clone 해 청크로 나눠 적재한다. 스레드풀에서 실행한다."""
+    clone_dir = tempfile.mkdtemp(prefix=f"reindex-{blog_id}-")
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth", "1", BLOG_REPOS[blog_id], clone_dir],
+            check=True,
+            capture_output=True,
+        )
+        contents_dir = f"{clone_dir}/contents/"
+
+        documents = load_blog_documents(contents_dir, blog_id)
+        chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
+        return manager.index_documents(blog_id, chunks)
+    finally:
+        shutil.rmtree(clone_dir, ignore_errors=True)
 
 
 @router.post("/feedback", response_model=FeedbackResponse)
