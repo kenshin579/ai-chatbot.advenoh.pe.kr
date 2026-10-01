@@ -1,7 +1,11 @@
+import httpx
+
+from app.rag import inspireme_loader
 from app.rag.inspireme_loader import (
     INSPIREME_URL,
     _build_author_document,
     _build_quote_document,
+    load_inspireme_documents,
 )
 
 
@@ -144,3 +148,61 @@ class TestBuildAuthorDocument:
 
         assert "출생: 1980" in doc.page_content
         assert "사망:" not in doc.page_content
+
+
+class TestInspiremeUrl:
+    def test_points_to_real_domain(self):
+        assert INSPIREME_URL == "https://inspire-me.advenoh.pe.kr"
+
+
+class TestLoadInspiremeDocuments:
+    """inspireme-be /api/* 는 X-Internal-Token 이 없으면 403 을 준다 (#44)."""
+
+    def _install_fake_backend(self, monkeypatch, token, quote_total=1):
+        seen = []
+        quotes = [{"id": i, "content": f"명언{i}", "author": "저자"} for i in range(quote_total)]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            if request.headers.get("X-Internal-Token") != token:
+                return httpx.Response(403, json={"error": {"code": "FORBIDDEN"}})
+            if request.url.path == "/api/quotes":
+                # inspireme-be 는 {"quotes": [...], "total": N} 형태로 준다
+                offset = int(request.url.params["offset"])
+                limit = int(request.url.params["limit"])
+                page = quotes[offset : offset + limit]
+                return httpx.Response(200, json={"quotes": page, "total": len(quotes)})
+            return httpx.Response(200, json={"authors": [], "total": 0})
+
+        real_client = httpx.AsyncClient
+        monkeypatch.setattr(
+            inspireme_loader.httpx,
+            "AsyncClient",
+            lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw),
+        )
+        return seen
+
+    async def test_sends_internal_token_header(self, monkeypatch):
+        seen = self._install_fake_backend(monkeypatch, token="secret")
+
+        docs = await load_inspireme_documents("http://inspireme-be", internal_token="secret")
+
+        assert len(docs) == 1
+        assert seen and all(r.headers["X-Internal-Token"] == "secret" for r in seen)
+
+    async def test_omits_header_when_token_empty(self, monkeypatch):
+        seen = self._install_fake_backend(monkeypatch, token=None)
+
+        await load_inspireme_documents("http://inspireme-be")
+
+        assert seen and all("X-Internal-Token" not in r.headers for r in seen)
+
+    async def test_paginates_quotes_by_total(self, monkeypatch):
+        monkeypatch.setattr(inspireme_loader, "PAGE_SIZE", 2)
+        seen = self._install_fake_backend(monkeypatch, token="t", quote_total=5)
+
+        docs = await load_inspireme_documents("http://inspireme-be", internal_token="t")
+
+        assert len(docs) == 5
+        quote_calls = [r for r in seen if r.url.path == "/api/quotes"]
+        assert len(quote_calls) == 3

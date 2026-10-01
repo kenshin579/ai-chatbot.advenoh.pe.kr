@@ -155,7 +155,9 @@ async def reindex(
     await run_in_threadpool(manager.delete_collection, blog_id)
 
     if blog_id == "inspireme":
-        documents = await load_inspireme_documents(settings.inspireme_api_url)
+        documents = await load_inspireme_documents(
+            settings.inspireme_api_url, settings.inspireme_internal_token
+        )
         indexed = await run_in_threadpool(manager.index_documents, blog_id, documents)
     else:
         indexed = await run_in_threadpool(_index_blog_repo, blog_id, settings, manager)

@@ -75,7 +75,7 @@ class TestIndexDoesNotBlockEventLoop:
     async def test_health_responds_during_reindex(self, monkeypatch):
         block = 1.0
 
-        async def fake_load(_url):
+        async def fake_load(_url, _token=""):
             return []
 
         monkeypatch.setattr(routes, "load_inspireme_documents", fake_load)
