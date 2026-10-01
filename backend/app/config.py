@@ -29,6 +29,8 @@ class Settings(BaseSettings):
 
     # inspireme API URL (인덱싱 시 사용)
     inspireme_api_url: str = "http://localhost:8080"
+    # inspireme-be /api/* 내부 토큰 (X-Internal-Token). inspireme-be 의 INTERNAL_API_TOKEN 과 같은 값
+    inspireme_internal_token: str = ""
 
     # Index API auth
     rag_index_token: str = ""

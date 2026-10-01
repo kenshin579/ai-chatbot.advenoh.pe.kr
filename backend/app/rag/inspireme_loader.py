@@ -5,7 +5,7 @@ from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
 
-INSPIREME_URL = "https://inspireme.advenoh.pe.kr"
+INSPIREME_URL = "https://inspire-me.advenoh.pe.kr"
 
 PAGE_SIZE = 1000
 
@@ -96,9 +96,10 @@ async def _fetch_all_quotes(client: httpx.AsyncClient) -> list[dict]:
     while True:
         resp = await client.get("/api/quotes", params={"limit": PAGE_SIZE, "offset": offset})
         resp.raise_for_status()
-        quotes = resp.json()
+        data = resp.json()
+        quotes = data.get("quotes", [])
         all_quotes.extend(quotes)
-        if len(quotes) < PAGE_SIZE:
+        if not quotes or offset + PAGE_SIZE >= data.get("total", 0):
             break
         offset += PAGE_SIZE
     return all_quotes
@@ -120,11 +121,15 @@ async def _fetch_all_authors(client: httpx.AsyncClient, lang: str) -> dict[str, 
     return authors
 
 
-async def load_inspireme_documents(api_url: str) -> list[Document]:
-    """inspireme API에서 명언/저자 데이터를 로드하여 Document 리스트로 반환한다."""
-    documents = []
+async def load_inspireme_documents(api_url: str, internal_token: str = "") -> list[Document]:
+    """inspireme API에서 명언/저자 데이터를 로드하여 Document 리스트로 반환한다.
 
-    async with httpx.AsyncClient(base_url=api_url, timeout=60.0) as client:
+    inspireme-be 의 /api/* 는 X-Internal-Token 이 없으면 403 을 준다(API Key 와 별개).
+    """
+    documents = []
+    headers = {"X-Internal-Token": internal_token} if internal_token else {}
+
+    async with httpx.AsyncClient(base_url=api_url, headers=headers, timeout=60.0) as client:
         quotes = await _fetch_all_quotes(client)
         for quote in quotes:
             documents.append(_build_quote_document(quote))
