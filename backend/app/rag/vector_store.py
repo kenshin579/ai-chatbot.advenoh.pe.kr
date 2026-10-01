@@ -7,6 +7,10 @@ from langchain_openai import OpenAIEmbeddings
 
 logger = logging.getLogger(__name__)
 
+# 한 번에 ChromaDB 로 보내는 문서 수. 수천 개를 한 요청으로 넣으면 chromadb 파드가
+# memory limit(1Gi)을 넘겨 OOMKilled 된다 (inspireme 6293개에서 재현, #46).
+INDEX_BATCH_SIZE = 500
+
 
 class VectorStoreManager:
     """ChromaDB 기반 벡터 저장소 관리자. blog_id별 Collection을 분리 관리한다."""
@@ -35,7 +39,8 @@ class VectorStoreManager:
     def index_documents(self, blog_id: str, documents: list[Document]) -> int:
         """문서를 해당 Collection에 인덱싱한다. 인덱싱된 청크 수를 반환한다."""
         store = self.get_store(blog_id)
-        store.add_documents(documents)
+        for start in range(0, len(documents), INDEX_BATCH_SIZE):
+            store.add_documents(documents[start : start + INDEX_BATCH_SIZE])
         return len(documents)
 
     def delete_collection(self, blog_id: str) -> None:
